@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Klasifikační Lab</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0f1419;
+            --bg-secondary: #1a1f2e;
+            --bg-tertiary: #252b3d;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: #334155;
+            --class-a: #f472b6;
+            --class-b: #38bdf8;
+        }
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+        
+        header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+            align-items: stretch;
+        }
+        
+        .controls-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .controls-panel .panel {
+            margin-top: 0;
+        }
+        
+        .viz-area {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+        
+        #mainCanvas {
+            flex: 1;
+            min-height: 350px;
+            width: 100%;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            display: block;
+        }
+        
+        .panel {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .panel-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: var(--accent-blue);
+            border-radius: 2px;
+        }
+        
+        /* Data Import Section */
+        .data-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .data-section label {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 120px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            resize: vertical;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        textarea::placeholder {
+            color: var(--text-muted);
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background: var(--accent-blue);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+        
+        .btn-success {
+            background: var(--accent-green);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .btn-block {
+            width: 100%;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Model Config */
+        .config-group {
+            margin-bottom: 1rem;
+        }
+        
+        .config-group label {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        
+        select, input[type="number"], input[type="text"] {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        .canvas-legend {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .legend-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+        }
+        
+        .legend-dot.class-a { background: var(--class-a); }
+        .legend-dot.class-b { background: var(--class-b); }
+        
+        /* Tree Diagram */
+        .tree-container {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            display: none;
+        }
+        
+        .tree-container.visible {
+            display: block;
+        }
+        
+        #treeCanvas {
+            width: 100%;
+            height: 300px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+        }
+        
+        /* Predictions Table */
+        .table-container {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        
+        th {
+            text-align: left;
+            padding: 0.75rem;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+        
+        tr:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .correct {
+            color: var(--accent-green);
+        }
+        
+        .incorrect {
+            color: var(--accent-red);
+        }
+        
+        /* Test Point Section */
+        .test-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        /* Prediction Result */
+        .prediction-result {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-top: 1rem;
+            display: none;
+        }
+        
+        .prediction-result.visible {
+            display: block;
+        }
+        
+        .prediction-class {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .prediction-class.class-a {
+            background: rgba(244, 114, 182, 0.2);
+            color: var(--class-a);
+        }
+        
+        .prediction-class.class-b {
+            background: rgba(56, 189, 248, 0.2);
+            color: var(--class-b);
+        }
+        
+        .prediction-explanation {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        
+        .prediction-explanation h4 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+        
+        .neighbor-list, .leaf-list {
+            margin-top: 0.75rem;
+            padding-left: 0;
+            list-style: none;
+        }
+        
+        .neighbor-list li, .leaf-list li {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+        
+        .neighbor-coords, .neighbor-values {
+            display: block;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .neighbor-class {
+            font-weight: 600;
+            margin-right: 1rem;
+        }
+        
+        .neighbor-dist {
+            color: var(--text-muted);
+        }
+        
+        .votes-summary {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-orange);
+        }
+        
+        .tree-path {
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            border-left: 3px solid var(--accent-purple);
+        }
+        
+        .probability-bar {
+            margin-top: 1rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            overflow: hidden;
+            height: 30px;
+            display: flex;
+        }
+        
+        .prob-segment {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: width 0.3s ease;
+        }
+        
+        .prob-segment.class-a {
+            background: var(--class-a);
+            color: #1a1f2e;
+        }
+        
+        .prob-segment.class-b {
+            background: var(--class-b);
+            color: #1a1f2e;
+        }
+        
+        /* Status Messages */
+        .status {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .status.info {
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--accent-blue);
+        }
+        
+        .status.success {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-green);
+        }
+        
+        .status.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--accent-red);
+        }
+        
+        /* Axis Labels */
+        .axis-labels {
+            position: static;
+        }
+        
+        .x-axis-label {
+            position: absolute;
+            bottom: 25px;
+            right: 35px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        
+        .y-axis-label {
+            position: absolute;
+            top: 55px;
+            left: 25px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        
+        /* Info Panel at Top */
+        .info-panel-top {
+            margin-bottom: 1.5rem;
+        }
+        
+        .info-steps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        
+        .step-num {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background: var(--accent-blue);
+            color: white;
+            border-radius: 50%;
+            font-size: 0.8rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        
+        /* Predictions Section */
+        .predictions-section {
+            margin-top: 2rem;
+        }
+        
+        .predictions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        
+        .test-panel {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .test-panel .test-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        /* Sample Data */
+        .sample-data {
+            margin-top: 0.75rem;
+        }
+        
+        .sample-btn {
+            font-size: 0.8rem;
+            padding: 0.4rem 0.75rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .sample-btn:hover {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 0.85rem;
+            pointer-events: none;
+            z-index: 100;
+            max-width: 250px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            display: none;
+        }
+        
+        .tooltip.visible {
+            display: block;
+        }
+        
+        .tooltip-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .tooltip-class {
+            font-size: 0.8rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .tooltip-values {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .predictions-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .info-steps {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ML Klasifikační Lab</h1>
+            <p>Trénování a testování klasifikačních modelů k-NN a Decision Tree</p>
+        </header>
+        
+        <!-- Info Panel at Top -->
+        <div class="panel info-panel-top">
+            <div class="panel-title">Postup práce</div>
+            <div class="info-steps">
+                <div class="step"><span class="step-num">1</span> Připravte trénovací data v Google Sheets</div>
+                <div class="step"><span class="step-num">2</span> Exportujte jako CSV (3 sloupce: x, y, třída)</div>
+                <div class="step"><span class="step-num">3</span> Vložte data a natrénujte model</div>
+                <div class="step"><span class="step-num">4</span> Zadejte testovací body a analyzujte predikce</div>
+                <div class="step"><span class="step-num">5</span> Z tabulek si sestavte matici záměn ručně</div>
+            </div>
+        </div>
+        
+        <div class="main-grid">
+            <!-- Left Panel - Controls -->
+            <div class="controls-panel">
+                <div class="panel">
+                    <div class="panel-title">1. Trénovací data</div>
+                    <div class="data-section">
+                        <label>Vlož CSV data (x, y, třída):</label>
+                        <textarea id="csvInput" placeholder="x,y,class
+0.8,0.25,Hip-Hop
+0.6,0.05,Rock
+..."></textarea>
+                        <div class="sample-data">
+                            <button class="sample-btn" onclick="loadSampleData()">Načíst ukázková data</button>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-block" onclick="parseData()">Načíst data</button>
+                    <div id="dataStatus"></div>
+                </div>
+                
+                <div class="panel">
+                    <div class="panel-title">2. Konfigurace modelu</div>
+                    <div class="config-group">
+                        <label>Metoda:</label>
+                        <select id="methodSelect" onchange="updateParamLabel()">
+                            <option value="knn">k-Nearest Neighbors (k-NN)</option>
+                            <option value="tree">Rozhodovací strom</option>
+                        </select>
+                    </div>
+                    <div class="config-group">
+                        <label id="paramLabel">Počet sousedů (k):</label>
+                        <input type="number" id="paramInput" value="3" min="1" max="20">
+                    </div>
+                    <button class="btn btn-success btn-block" onclick="trainModel()" id="trainBtn" disabled>Natrénovat model</button>
+                    <div id="trainStatus"></div>
+                </div>
+            </div>
+            
+            <!-- Right Panel - Visualization -->
+            <div class="viz-area">
+                <div class="canvas-container">
+                    <div class="panel-title">Vizualizace modelu</div>
+                    <canvas id="mainCanvas"></canvas>
+                    <div class="axis-labels">
+                        <span id="yAxisLabel" class="y-axis-label">Y</span>
+                        <span id="xAxisLabel" class="x-axis-label">X</span>
+                    </div>
+                    <div class="canvas-legend" id="canvasLegend" style="display: none;">
+                        <div class="legend-item">
+                            <div class="legend-dot class-a"></div>
+                            <span id="legendA">Třída A</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot class-b"></div>
+                            <span id="legendB">Třída B</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tree-container" id="treeContainer">
+                    <div class="panel-title">Diagram rozhodovacího stromu</div>
+                    <canvas id="treeCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Predictions Section - Side by Side -->
+        <div class="predictions-section">
+            <div class="predictions-grid">
+                <!-- Train Predictions Table -->
+                <div class="table-container">
+                    <div class="panel-title">Predikce na trénovacích datech</div>
+                    <table id="predictionsTable">
+                        <thead>
+                            <tr>
+                                <th>X</th>
+                                <th>Y</th>
+                                <th>Skutečná třída</th>
+                                <th>Predikce</th>
+                            </tr>
+                        </thead>
+                        <tbody id="predictionsBody">
+                            <tr>
+                                <td colspan="4" style="text-align: center; color: var(--text-muted);">
+                                    Nejprve načtěte data a natrénujte model
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Test Prediction Panel -->
+                <div class="panel test-panel">
+                    <div class="panel-title">3. Predikce testovacího bodu</div>
+                    <div class="test-inputs">
+                        <div class="config-group">
+                            <label id="xLabel">X:</label>
+                            <input type="text" id="testX" placeholder="např. 0.75">
+                        </div>
+                        <div class="config-group">
+                            <label id="yLabel">Y:</label>
+                            <input type="text" id="testY" placeholder="např. 0.20">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-block" onclick="predictPoint()" id="predictBtn" disabled>Predikovat</button>
+                    
+                    <div class="prediction-result" id="predictionResult">
+                        <div class="prediction-class" id="predictionClass"></div>
+                        <div class="probability-bar" id="probabilityBar"></div>
+                        <div class="prediction-explanation" id="predictionExplanation"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip">
+        <div class="tooltip-title" id="tooltipTitle"></div>
+        <div class="tooltip-class" id="tooltipClass"></div>
+        <div class="tooltip-values" id="tooltipValues"></div>
+    </div>
+
+    <script>
+        // Global state
+        let trainingData = [];
+        let model = null;
+        let classNames = [];
+        let featureNames = ['X', 'Y'];
+        let xRange = [0, 1];
+        let yRange = [0, 1];
+        let testPoint = null;
+        let decisionTree = null;
+        
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const treeCanvas = document.getElementById('treeCanvas');
+        const treeCtx = treeCanvas.getContext('2d');
+        
+        // Colors
+        const classColors = {
+            a: '#f472b6',
+            b: '#38bdf8'
+        };
+        
+        // Sample data
+        function loadSampleData() {
+            const sampleCSV = `energy,speechiness,class
+0.735,0.264,Hip-Hop
+0.449,0.109,Hip-Hop
+0.713,0.366,Hip-Hop
+0.818,0.253,Hip-Hop
+0.73,0.222,Hip-Hop
+0.91,0.223,Hip-Hop
+0.768,0.238,Hip-Hop
+0.843,0.314,Hip-Hop
+0.912,0.0564,Rock
+0.7,0.047,Rock
+0.91,0.0448,Rock
+0.404,0.0499,Rock
+0.828,0.0298,Rock
+0.89,0.0364,Rock
+0.89,0.0338,Rock
+0.952,0.0843,Rock`;
+            document.getElementById('csvInput').value = sampleCSV;
+        }
+        
+        // Parse CSV data
+        function parseData() {
+            const csvText = document.getElementById('csvInput').value.trim();
+            if (!csvText) {
+                showStatus('dataStatus', 'Vložte CSV data', 'error');
+                return;
+            }
+            
+            const lines = csvText.split('\n').filter(line => line.trim());
+            if (lines.length < 2) {
+                showStatus('dataStatus', 'Data musí obsahovat hlavičku a alespoň 1 řádek', 'error');
+                return;
+            }
+            
+            // Parse header
+            const header = lines[0].split(',').map(h => h.trim());
+            if (header.length < 3) {
+                showStatus('dataStatus', 'Data musí mít alespoň 3 sloupce (x, y, třída)', 'error');
+                return;
+            }
+            
+            featureNames = [header[0], header[1]];
+            document.getElementById('xAxisLabel').textContent = featureNames[0];
+            document.getElementById('yAxisLabel').textContent = featureNames[1];
+            document.getElementById('xLabel').textContent = featureNames[0] + ':';
+            document.getElementById('yLabel').textContent = featureNames[1] + ':';
+            
+            // Parse data
+            trainingData = [];
+            const classes = new Set();
+            
+            for (let i = 1; i < lines.length; i++) {
+                const parts = lines[i].split(',').map(p => p.trim());
+                if (parts.length >= 3) {
+                    const x = parseFloat(parts[0]);
+                    const y = parseFloat(parts[1]);
+                    const cls = parts[2];
+                    
+                    if (!isNaN(x) && !isNaN(y) && cls) {
+                        trainingData.push({ x, y, class: cls, label: `Bod ${i}` });
+                        classes.add(cls);
+                    }
+                }
+            }
+            
+            if (trainingData.length === 0) {
+                showStatus('dataStatus', 'Nepodařilo se načíst žádná data', 'error');
+                return;
+            }
+            
+            classNames = Array.from(classes);
+            if (classNames.length !== 2) {
+                showStatus('dataStatus', `Data musí obsahovat právě 2 třídy (nalezeno: ${classNames.length})`, 'error');
+                return;
+            }
+            
+            // Calculate ranges
+            const xValues = trainingData.map(d => d.x);
+            const yValues = trainingData.map(d => d.y);
+            const xPadding = (Math.max(...xValues) - Math.min(...xValues)) * 0.1 || 0.1;
+            const yPadding = (Math.max(...yValues) - Math.min(...yValues)) * 0.1 || 0.1;
+            xRange = [Math.min(...xValues) - xPadding, Math.max(...xValues) + xPadding];
+            yRange = [Math.min(...yValues) - yPadding, Math.max(...yValues) + yPadding];
+            
+            // Update legend
+            document.getElementById('legendA').textContent = classNames[0];
+            document.getElementById('legendB').textContent = classNames[1];
+            document.getElementById('canvasLegend').style.display = 'flex';
+            
+            showStatus('dataStatus', `Načteno ${trainingData.length} bodů, třídy: ${classNames.join(', ')}`, 'success');
+            document.getElementById('trainBtn').disabled = false;
+            
+            // Draw initial points
+            drawCanvas();
+        }
+        
+        // Show status message
+        function showStatus(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            el.className = `status ${type}`;
+            el.textContent = message;
+        }
+        
+        // Update parameter label based on method
+        function updateParamLabel() {
+            const method = document.getElementById('methodSelect').value;
+            const label = document.getElementById('paramLabel');
+            const input = document.getElementById('paramInput');
+            
+            if (method === 'knn') {
+                label.textContent = 'Počet sousedů (k):';
+                input.value = 3;
+                input.max = 20;
+            } else {
+                label.textContent = 'Maximální hloubka:';
+                input.value = 3;
+                input.max = 10;
+            }
+        }
+        
+        // Train model
+        function trainModel() {
+            const method = document.getElementById('methodSelect').value;
+            const param = parseInt(document.getElementById('paramInput').value);
+            
+            if (method === 'knn') {
+                model = { type: 'knn', k: param };
+                decisionTree = null;
+                document.getElementById('treeContainer').classList.remove('visible');
+            } else {
+                decisionTree = buildDecisionTree(trainingData, 0, param);
+                model = { type: 'tree', maxDepth: param, tree: decisionTree };
+                document.getElementById('treeContainer').classList.add('visible');
+                drawTree();
+            }
+            
+            showStatus('trainStatus', `Model natrénován: ${method === 'knn' ? 'k-NN (k=' + param + ')' : 'Strom (hloubka=' + param + ')'}`, 'success');
+            document.getElementById('predictBtn').disabled = false;
+            
+            // Draw visualization and predictions table
+            drawCanvas();
+            updatePredictionsTable();
+        }
+        
+        // Build decision tree
+        function buildDecisionTree(data, depth, maxDepth) {
+            const classCounts = {};
+            data.forEach(d => {
+                classCounts[d.class] = (classCounts[d.class] || 0) + 1;
+            });
+            
+            const majorityClass = Object.entries(classCounts).sort((a, b) => b[1] - a[1])[0][0];
+            
+            // Leaf conditions
+            if (depth >= maxDepth || data.length <= 2 || Object.keys(classCounts).length === 1) {
+                return {
+                    isLeaf: true,
+                    class: majorityClass,
+                    classCounts: classCounts,
+                    samples: data.length,
+                    data: data
+                };
+            }
+            
+            // Find best split
+            const bestSplit = findBestSplit(data);
+            if (!bestSplit) {
+                return {
+                    isLeaf: true,
+                    class: majorityClass,
+                    classCounts: classCounts,
+                    samples: data.length,
+                    data: data
+                };
+            }
+            
+            const leftData = data.filter(d => d[bestSplit.feature] <= bestSplit.threshold);
+            const rightData = data.filter(d => d[bestSplit.feature] > bestSplit.threshold);
+            
+            if (leftData.length === 0 || rightData.length === 0) {
+                return {
+                    isLeaf: true,
+                    class: majorityClass,
+                    classCounts: classCounts,
+                    samples: data.length,
+                    data: data
+                };
+            }
+            
+            return {
+                isLeaf: false,
+                feature: bestSplit.feature,
+                threshold: bestSplit.threshold,
+                left: buildDecisionTree(leftData, depth + 1, maxDepth),
+                right: buildDecisionTree(rightData, depth + 1, maxDepth),
+                samples: data.length
+            };
+        }
+        
+        // Find best split using Gini impurity
+        function findBestSplit(data) {
+            let bestGain = -Infinity;
+            let bestSplit = null;
+            
+            ['x', 'y'].forEach(feature => {
+                const values = [...new Set(data.map(d => d[feature]))].sort((a, b) => a - b);
+                
+                for (let i = 0; i < values.length - 1; i++) {
+                    const threshold = (values[i] + values[i + 1]) / 2;
+                    const leftData = data.filter(d => d[feature] <= threshold);
+                    const rightData = data.filter(d => d[feature] > threshold);
+                    
+                    if (leftData.length > 0 && rightData.length > 0) {
+                        const gain = calculateGiniGain(data, leftData, rightData);
+                        if (gain > bestGain) {
+                            bestGain = gain;
+                            bestSplit = { feature, threshold };
+                        }
+                    }
+                }
+            });
+            
+            return bestSplit;
+        }
+        
+        // Calculate Gini impurity
+        function giniImpurity(data) {
+            const counts = {};
+            data.forEach(d => counts[d.class] = (counts[d.class] || 0) + 1);
+            let gini = 1;
+            Object.values(counts).forEach(count => {
+                const p = count / data.length;
+                gini -= p * p;
+            });
+            return gini;
+        }
+        
+        function calculateGiniGain(parent, left, right) {
+            const parentGini = giniImpurity(parent);
+            const leftGini = giniImpurity(left);
+            const rightGini = giniImpurity(right);
+            const weightedChildGini = (left.length * leftGini + right.length * rightGini) / parent.length;
+            return parentGini - weightedChildGini;
+        }
+        
+        // Predict with tree
+        function predictWithTree(tree, point) {
+            const path = [];
+            let node = tree;
+            
+            while (!node.isLeaf) {
+                const featureName = node.feature === 'x' ? featureNames[0] : featureNames[1];
+                const value = point[node.feature];
+                const goLeft = value <= node.threshold;
+                
+                path.push({
+                    feature: featureName,
+                    threshold: node.threshold,
+                    value: value,
+                    direction: goLeft ? '≤' : '>'
+                });
+                
+                node = goLeft ? node.left : node.right;
+            }
+            
+            return {
+                class: node.class,
+                classCounts: node.classCounts,
+                path: path,
+                leafData: node.data
+            };
+        }
+        
+        // k-NN prediction
+        function predictKNN(point, k) {
+            const distances = trainingData.map(d => ({
+                ...d,
+                distance: Math.sqrt(Math.pow(d.x - point.x, 2) + Math.pow(d.y - point.y, 2))
+            }));
+            
+            distances.sort((a, b) => a.distance - b.distance);
+            const neighbors = distances.slice(0, k);
+            
+            const votes = {};
+            neighbors.forEach(n => {
+                votes[n.class] = (votes[n.class] || 0) + 1;
+            });
+            
+            const predictedClass = Object.entries(votes).sort((a, b) => b[1] - a[1])[0][0];
+            
+            return {
+                class: predictedClass,
+                neighbors: neighbors,
+                votes: votes
+            };
+        }
+        
+        // Draw main canvas
+        function drawCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            
+            const width = rect.width;
+            const height = rect.height;
+            const paddingLeft = 55;
+            const paddingRight = 20;
+            const paddingTop = 20;
+            const paddingBottom = 35;
+            
+            // Clear
+            ctx.fillStyle = '#252b3d';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Draw decision boundaries if model is trained
+            if (model) {
+                const resolution = 100;
+                const cellWidth = (width - paddingLeft - paddingRight) / resolution;
+                const cellHeight = (height - paddingTop - paddingBottom) / resolution;
+                
+                for (let i = 0; i < resolution; i++) {
+                    for (let j = 0; j < resolution; j++) {
+                        const px = paddingLeft + i * cellWidth;
+                        const py = paddingTop + j * cellHeight;
+                        
+                        const x = xRange[0] + (i / resolution) * (xRange[1] - xRange[0]);
+                        const y = yRange[1] - (j / resolution) * (yRange[1] - yRange[0]);
+                        
+                        let predictedClass;
+                        if (model.type === 'knn') {
+                            predictedClass = predictKNN({ x, y }, model.k).class;
+                        } else {
+                            predictedClass = predictWithTree(model.tree, { x, y }).class;
+                        }
+                        
+                        const color = predictedClass === classNames[0] ? 'rgba(244, 114, 182, 0.15)' : 'rgba(56, 189, 248, 0.15)';
+                        ctx.fillStyle = color;
+                        ctx.fillRect(px, py, cellWidth + 1, cellHeight + 1);
+                    }
+                }
+            }
+            
+            // Draw grid
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 0.5;
+            
+            for (let i = 0; i <= 5; i++) {
+                const x = paddingLeft + (i / 5) * (width - paddingLeft - paddingRight);
+                const y = paddingTop + (i / 5) * (height - paddingTop - paddingBottom);
+                
+                ctx.beginPath();
+                ctx.moveTo(x, paddingTop);
+                ctx.lineTo(x, height - paddingBottom);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(paddingLeft, y);
+                ctx.lineTo(width - paddingRight, y);
+                ctx.stroke();
+                
+                // Axis labels
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '11px JetBrains Mono';
+                ctx.textAlign = 'center';
+                
+                const xVal = xRange[0] + (i / 5) * (xRange[1] - xRange[0]);
+                ctx.fillText(xVal.toFixed(2), x, height - paddingBottom + 18);
+                
+                const yVal = yRange[1] - (i / 5) * (yRange[1] - yRange[0]);
+                ctx.textAlign = 'right';
+                ctx.fillText(yVal.toFixed(2), paddingLeft - 8, y + 4);
+            }
+            
+            // Draw training points
+            trainingData.forEach(point => {
+                const px = paddingLeft + ((point.x - xRange[0]) / (xRange[1] - xRange[0])) * (width - paddingLeft - paddingRight);
+                const py = paddingTop + ((yRange[1] - point.y) / (yRange[1] - yRange[0])) * (height - paddingTop - paddingBottom);
+                
+                ctx.beginPath();
+                ctx.arc(px, py, 8, 0, Math.PI * 2);
+                ctx.fillStyle = point.class === classNames[0] ? classColors.a : classColors.b;
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+            
+            // Draw test point if exists
+            if (testPoint) {
+                const px = paddingLeft + ((testPoint.x - xRange[0]) / (xRange[1] - xRange[0])) * (width - paddingLeft - paddingRight);
+                const py = paddingTop + ((yRange[1] - testPoint.y) / (yRange[1] - yRange[0])) * (height - paddingTop - paddingBottom);
+                
+                // Draw connecting lines to neighbors for k-NN
+                if (model && model.type === 'knn' && testPoint.neighbors) {
+                    testPoint.neighbors.forEach(n => {
+                        const nx = paddingLeft + ((n.x - xRange[0]) / (xRange[1] - xRange[0])) * (width - paddingLeft - paddingRight);
+                        const ny = paddingTop + ((yRange[1] - n.y) / (yRange[1] - yRange[0])) * (height - paddingTop - paddingBottom);
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(px, py);
+                        ctx.lineTo(nx, ny);
+                        ctx.strokeStyle = 'rgba(251, 191, 36, 0.5)';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    });
+                }
+                
+                // Draw test point
+                ctx.beginPath();
+                ctx.arc(px, py, 10, 0, Math.PI * 2);
+                ctx.fillStyle = '#fbbf24';
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // Label
+                ctx.fillStyle = '#fbbf24';
+                ctx.font = 'bold 12px Outfit';
+                ctx.textAlign = 'left';
+                ctx.fillText('TEST', px + 15, py + 4);
+            }
+        }
+        
+        // Draw decision tree diagram
+        function drawTree() {
+            if (!decisionTree) return;
+            
+            const rect = treeCanvas.getBoundingClientRect();
+            treeCanvas.width = rect.width * window.devicePixelRatio;
+            treeCanvas.height = rect.height * window.devicePixelRatio;
+            treeCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            
+            const width = rect.width;
+            const height = rect.height;
+            
+            treeCtx.fillStyle = '#252b3d';
+            treeCtx.fillRect(0, 0, width, height);
+            
+            function drawNode(node, x, y, level, xSpread) {
+                const nodeWidth = 120;
+                const nodeHeight = 50;
+                const verticalGap = 70;
+                
+                if (node.isLeaf) {
+                    // Leaf node
+                    const color = node.class === classNames[0] ? 'rgba(244, 114, 182, 0.3)' : 'rgba(56, 189, 248, 0.3)';
+                    const borderColor = node.class === classNames[0] ? classColors.a : classColors.b;
+                    
+                    treeCtx.fillStyle = color;
+                    treeCtx.strokeStyle = borderColor;
+                    treeCtx.lineWidth = 2;
+                    treeCtx.beginPath();
+                    treeCtx.roundRect(x - nodeWidth/2, y - nodeHeight/2, nodeWidth, nodeHeight, 8);
+                    treeCtx.fill();
+                    treeCtx.stroke();
+                    
+                    treeCtx.fillStyle = '#f1f5f9';
+                    treeCtx.font = 'bold 12px Outfit';
+                    treeCtx.textAlign = 'center';
+                    treeCtx.fillText(node.class, x, y - 5);
+                    
+                    treeCtx.fillStyle = '#94a3b8';
+                    treeCtx.font = '10px JetBrains Mono';
+                    const counts = Object.entries(node.classCounts).map(([k, v]) => `${k}: ${v}`).join(', ');
+                    treeCtx.fillText(counts, x, y + 12);
+                } else {
+                    // Internal node
+                    const featureName = node.feature === 'x' ? featureNames[0] : featureNames[1];
+                    
+                    treeCtx.fillStyle = 'rgba(139, 92, 246, 0.2)';
+                    treeCtx.strokeStyle = '#8b5cf6';
+                    treeCtx.lineWidth = 2;
+                    treeCtx.beginPath();
+                    treeCtx.roundRect(x - nodeWidth/2, y - nodeHeight/2, nodeWidth, nodeHeight, 8);
+                    treeCtx.fill();
+                    treeCtx.stroke();
+                    
+                    treeCtx.fillStyle = '#f1f5f9';
+                    treeCtx.font = 'bold 11px Outfit';
+                    treeCtx.textAlign = 'center';
+                    treeCtx.fillText(`${featureName} ≤ ${node.threshold.toFixed(3)}`, x, y - 5);
+                    
+                    treeCtx.fillStyle = '#94a3b8';
+                    treeCtx.font = '10px JetBrains Mono';
+                    treeCtx.fillText(`n = ${node.samples}`, x, y + 12);
+                    
+                    // Draw children
+                    const childY = y + verticalGap;
+                    const childXSpread = xSpread * 0.5;
+                    
+                    // Left child
+                    const leftX = x - childXSpread;
+                    treeCtx.strokeStyle = '#64748b';
+                    treeCtx.lineWidth = 1.5;
+                    treeCtx.beginPath();
+                    treeCtx.moveTo(x, y + nodeHeight/2);
+                    treeCtx.lineTo(leftX, childY - nodeHeight/2);
+                    treeCtx.stroke();
+                    
+                    treeCtx.fillStyle = '#64748b';
+                    treeCtx.font = '10px Outfit';
+                    treeCtx.fillText('Ano', (x + leftX) / 2 - 15, (y + childY) / 2);
+                    
+                    drawNode(node.left, leftX, childY, level + 1, childXSpread);
+                    
+                    // Right child
+                    const rightX = x + childXSpread;
+                    treeCtx.strokeStyle = '#64748b';
+                    treeCtx.lineWidth = 1.5;
+                    treeCtx.beginPath();
+                    treeCtx.moveTo(x, y + nodeHeight/2);
+                    treeCtx.lineTo(rightX, childY - nodeHeight/2);
+                    treeCtx.stroke();
+                    
+                    treeCtx.fillStyle = '#64748b';
+                    treeCtx.font = '10px Outfit';
+                    treeCtx.fillText('Ne', (x + rightX) / 2 + 15, (y + childY) / 2);
+                    
+                    drawNode(node.right, rightX, childY, level + 1, childXSpread);
+                }
+            }
+            
+            drawNode(decisionTree, width / 2, 40, 0, width * 0.35);
+        }
+        
+        // Update predictions table
+        function updatePredictionsTable() {
+            const tbody = document.getElementById('predictionsBody');
+            tbody.innerHTML = '';
+            
+            trainingData.forEach((point, idx) => {
+                let prediction;
+                if (model.type === 'knn') {
+                    prediction = predictKNN(point, model.k).class;
+                } else {
+                    prediction = predictWithTree(model.tree, point).class;
+                }
+                
+                const isCorrect = prediction === point.class;
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${point.x.toFixed(4)}</td>
+                    <td>${point.y.toFixed(4)}</td>
+                    <td>${point.class}</td>
+                    <td class="${isCorrect ? 'correct' : 'incorrect'}">${prediction}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // Predict test point
+        function predictPoint() {
+            const xVal = parseFloat(document.getElementById('testX').value);
+            const yVal = parseFloat(document.getElementById('testY').value);
+            
+            if (isNaN(xVal) || isNaN(yVal)) {
+                alert('Zadejte platné číselné hodnoty pro X a Y');
+                return;
+            }
+            
+            testPoint = { x: xVal, y: yVal };
+            
+            let result;
+            const resultDiv = document.getElementById('predictionResult');
+            const classDiv = document.getElementById('predictionClass');
+            const explanationDiv = document.getElementById('predictionExplanation');
+            const probBar = document.getElementById('probabilityBar');
+            
+            if (model.type === 'knn') {
+                result = predictKNN(testPoint, model.k);
+                testPoint.neighbors = result.neighbors;
+                
+                // Class display
+                classDiv.textContent = `Predikce: ${result.class}`;
+                classDiv.className = `prediction-class ${result.class === classNames[0] ? 'class-a' : 'class-b'}`;
+                
+                // Probability bar
+                const probA = (result.votes[classNames[0]] || 0) / model.k;
+                const probB = (result.votes[classNames[1]] || 0) / model.k;
+                probBar.innerHTML = `
+                    <div class="prob-segment class-a" style="width: ${probA * 100}%">${classNames[0]}: ${(probA * 100).toFixed(0)}%</div>
+                    <div class="prob-segment class-b" style="width: ${probB * 100}%">${classNames[1]}: ${(probB * 100).toFixed(0)}%</div>
+                `;
+                
+                // Explanation
+                let neighborsHtml = '<h4>Nejbližší sousedé (k=' + model.k + '):</h4><ul class="neighbor-list">';
+                result.neighbors.forEach((n, i) => {
+                    const classColor = n.class === classNames[0] ? classColors.a : classColors.b;
+                    neighborsHtml += `<li>
+                        <span class="neighbor-coords">${i + 1}. ${featureNames[0]} = ${n.x.toFixed(4)}, ${featureNames[1]} = ${n.y.toFixed(4)}</span>
+                        <span class="neighbor-class" style="color: ${classColor}">${n.class}</span>
+                        <span class="neighbor-dist">vzdálenost = ${n.distance.toFixed(4)}</span>
+                    </li>`;
+                });
+                neighborsHtml += '</ul>';
+                
+                neighborsHtml += `<div class="votes-summary"><strong>Hlasování:</strong> ${classNames[0]}: ${result.votes[classNames[0]] || 0}, ${classNames[1]}: ${result.votes[classNames[1]] || 0}</div>`;
+                
+                explanationDiv.innerHTML = neighborsHtml;
+                
+            } else {
+                result = predictWithTree(model.tree, testPoint);
+                
+                // Class display
+                classDiv.textContent = `Predikce: ${result.class}`;
+                classDiv.className = `prediction-class ${result.class === classNames[0] ? 'class-a' : 'class-b'}`;
+                
+                // Probability bar
+                const total = Object.values(result.classCounts).reduce((a, b) => a + b, 0);
+                const probA = (result.classCounts[classNames[0]] || 0) / total;
+                const probB = (result.classCounts[classNames[1]] || 0) / total;
+                probBar.innerHTML = `
+                    <div class="prob-segment class-a" style="width: ${probA * 100}%">${classNames[0]}: ${(probA * 100).toFixed(0)}%</div>
+                    <div class="prob-segment class-b" style="width: ${probB * 100}%">${classNames[1]}: ${(probB * 100).toFixed(0)}%</div>
+                `;
+                
+                // Explanation - path through tree
+                let pathHtml = '<h4>Cesta stromem:</h4><div class="tree-path">';
+                result.path.forEach((step, i) => {
+                    pathHtml += `${i + 1}. ${step.feature} = ${step.value.toFixed(3)} ${step.direction} ${step.threshold.toFixed(3)}<br>`;
+                });
+                pathHtml += `→ <strong>List: ${result.class}</strong></div>`;
+                
+                pathHtml += '<h4 style="margin-top: 1rem;">Data v listu:</h4><ul class="leaf-list">';
+                result.leafData.forEach(d => {
+                    const classColor = d.class === classNames[0] ? classColors.a : classColors.b;
+                    pathHtml += `<li>
+                        <span class="neighbor-coords">${featureNames[0]} = ${d.x.toFixed(4)}, ${featureNames[1]} = ${d.y.toFixed(4)}</span>
+                        <span class="neighbor-class" style="color: ${classColor}">${d.class}</span>
+                    </li>`;
+                });
+                pathHtml += '</ul>';
+                
+                pathHtml += `<div class="votes-summary"><strong>Distribuce v listu:</strong> ${classNames[0]}: ${result.classCounts[classNames[0]] || 0}, ${classNames[1]}: ${result.classCounts[classNames[1]] || 0}</div>`;
+                
+                explanationDiv.innerHTML = pathHtml;
+            }
+            
+            resultDiv.classList.add('visible');
+            drawCanvas();
+        }
+        
+        // Handle canvas hover for tooltips
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const paddingLeft = 55;
+            const paddingRight = 20;
+            const paddingTop = 20;
+            const paddingBottom = 35;
+            
+            const tooltip = document.getElementById('tooltip');
+            let found = false;
+            
+            trainingData.forEach(point => {
+                const px = paddingLeft + ((point.x - xRange[0]) / (xRange[1] - xRange[0])) * (rect.width - paddingLeft - paddingRight);
+                const py = paddingTop + ((yRange[1] - point.y) / (yRange[1] - yRange[0])) * (rect.height - paddingTop - paddingBottom);
+                
+                const dist = Math.sqrt(Math.pow(mouseX - px, 2) + Math.pow(mouseY - py, 2));
+                
+                if (dist < 12) {
+                    tooltip.style.left = (e.clientX + 15) + 'px';
+                    tooltip.style.top = (e.clientY + 15) + 'px';
+                    
+                    document.getElementById('tooltipTitle').textContent = point.label || 'Datový bod';
+                    document.getElementById('tooltipClass').innerHTML = `Třída: <span style="color: ${point.class === classNames[0] ? classColors.a : classColors.b}">${point.class}</span>`;
+                    document.getElementById('tooltipValues').textContent = `${featureNames[0]}: ${point.x.toFixed(4)}, ${featureNames[1]}: ${point.y.toFixed(4)}`;
+                    
+                    tooltip.classList.add('visible');
+                    found = true;
+                }
+            });
+            
+            if (!found) {
+                tooltip.classList.remove('visible');
+            }
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            document.getElementById('tooltip').classList.remove('visible');
+        });
+        
+        // Resize handling
+        window.addEventListener('resize', () => {
+            drawCanvas();
+            if (decisionTree) drawTree();
+        });
+        
+        // Initial draw
+        drawCanvas();
+    </script>
+</body>
+</html>
