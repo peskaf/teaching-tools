@@ -35,7 +35,8 @@ export const villagers = [
         currentAction: null,
         actionProgress: 0,
         behaviorTree: null,
-        treeState: null
+        treeState: null,
+        lastFailureReason: null // Stores why the last action failed (for debugging)
     },
     {
         id: 1,
@@ -61,7 +62,8 @@ export const villagers = [
         currentAction: null,
         actionProgress: 0,
         behaviorTree: null,
-        treeState: null
+        treeState: null,
+        lastFailureReason: null
     },
     {
         id: 2,
@@ -87,7 +89,8 @@ export const villagers = [
         currentAction: null,
         actionProgress: 0,
         behaviorTree: null,
-        treeState: null
+        treeState: null,
+        lastFailureReason: null
     },
     {
         id: 3,
@@ -113,7 +116,8 @@ export const villagers = [
         currentAction: null,
         actionProgress: 0,
         behaviorTree: null,
-        treeState: null
+        treeState: null,
+        lastFailureReason: null
     },
     {
         id: 4,
@@ -139,7 +143,8 @@ export const villagers = [
         currentAction: null,
         actionProgress: 0,
         behaviorTree: null,
-        treeState: null
+        treeState: null,
+        lastFailureReason: null
     }
 ];
 
@@ -192,6 +197,12 @@ function isNearLocation(villager, location, range = 1.5) {
     const centerY = location.y + location.h / 2;
     const dist = Math.sqrt(Math.pow(villager.x - centerX, 2) + Math.pow(villager.y - centerY, 2));
     return dist < range;
+}
+
+// Helper to fail an action with a clear reason (for debugging/UI)
+function failWithReason(villager, reason) {
+    villager.lastFailureReason = reason;
+    return NodeStatus.FAILURE;
 }
 
 // Calculate target warmth based on location, season, and sweater
@@ -453,7 +464,9 @@ export const ACTIONS = {
     }),
 
     getWater: (villager) => {
-        if (!isNearLocation(villager, LOCATIONS.well, 2)) return NodeStatus.FAILURE;
+        if (!isNearLocation(villager, LOCATIONS.well, 2)) {
+            return failWithReason(villager, 'getWater: must be near the well');
+        }
 
         villager.state = 'gettingWater';
         villager.hasWater = true;
@@ -461,12 +474,16 @@ export const ACTIONS = {
     },
 
     extinguishFire: (villager) => {
-        if (!villager.hasWater) return NodeStatus.FAILURE;
+        if (!villager.hasWater) {
+            return failWithReason(villager, 'extinguishFire: must have water (use getWater at well first)');
+        }
         if (!world.fireOutbreak) return NodeStatus.SUCCESS;
 
         const fire = world.fireOutbreak;
         const dist = Math.sqrt(Math.pow(fire.x - villager.x, 2) + Math.pow(fire.y - villager.y, 2));
-        if (dist > 2) return NodeStatus.FAILURE;
+        if (dist > 2) {
+            return failWithReason(villager, 'extinguishFire: must be near the fire');
+        }
 
         villager.state = 'firefighting';
         villager.hasWater = false;
@@ -479,7 +496,9 @@ export const ACTIONS = {
 
     plantCrops: (villager) => {
         // Can't plant in winter
-        if (gameStateRef.season === 'winter') return NodeStatus.FAILURE;
+        if (gameStateRef.season === 'winter') {
+            return failWithReason(villager, 'plantCrops: cannot plant during winter');
+        }
 
         const nearbyField = world.fields.find(f =>
             f.state === 'empty' &&
@@ -489,7 +508,7 @@ export const ACTIONS = {
 
         if (!nearbyField) {
             villager.targetField = null;
-            return NodeStatus.FAILURE;
+            return failWithReason(villager, 'plantCrops: must be near an empty field (use goToField first)');
         }
 
         nearbyField.state = 'planted';
@@ -511,7 +530,7 @@ export const ACTIONS = {
 
         if (!nearbyField) {
             villager.targetField = null;
-            return NodeStatus.FAILURE;
+            return failWithReason(villager, 'harvestCrops: must be near a ready field (use goToField first)');
         }
 
         nearbyField.state = 'empty';
@@ -538,7 +557,7 @@ export const ACTIONS = {
         if (!nearbyField) {
             villager.targetField = null;
             villager.currentAction = null;
-            return NodeStatus.FAILURE;
+            return failWithReason(villager, 'waterCrops: must be near an unwatered planted/growing field (use goToFieldForWatering first)');
         }
 
         nearbyField.isWatered = true;
@@ -557,8 +576,12 @@ export const ACTIONS = {
     },
 
     storeItems: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.storage)) return NodeStatus.FAILURE;
-        if (villager.inventory <= 0) return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.storage)) {
+            return failWithReason(villager, 'storeItems: must be inside storage building (use goToStorage first)');
+        }
+        if (villager.inventory <= 0) {
+            return failWithReason(villager, 'storeItems: must have items in inventory');
+        }
 
         // Store based on inventory type
         switch (villager.inventoryType) {
@@ -578,9 +601,15 @@ export const ACTIONS = {
 
     // Pick up items from storage
     pickupWheat: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.storage)) return NodeStatus.FAILURE;
-        if (gameStateRef.storedWheat < CONFIG.WHEAT_PER_FLOUR) return NodeStatus.FAILURE;
-        if (villager.inventory > 0) return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.storage)) {
+            return failWithReason(villager, 'pickupWheat: must be inside storage building (use goToStorage first)');
+        }
+        if (gameStateRef.storedWheat < CONFIG.WHEAT_PER_FLOUR) {
+            return failWithReason(villager, `pickupWheat: storage needs at least ${CONFIG.WHEAT_PER_FLOUR} wheat`);
+        }
+        if (villager.inventory > 0) {
+            return failWithReason(villager, 'pickupWheat: inventory must be empty first');
+        }
 
         gameStateRef.storedWheat -= CONFIG.WHEAT_PER_FLOUR;
         villager.inventory = CONFIG.WHEAT_PER_FLOUR;
@@ -591,9 +620,15 @@ export const ACTIONS = {
     },
 
     pickupFlour: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.storage)) return NodeStatus.FAILURE;
-        if (gameStateRef.storedFlour < CONFIG.FLOUR_PER_BREAD) return NodeStatus.FAILURE;
-        if (villager.inventory > 0) return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.storage)) {
+            return failWithReason(villager, 'pickupFlour: must be inside storage building (use goToStorage first)');
+        }
+        if (gameStateRef.storedFlour < CONFIG.FLOUR_PER_BREAD) {
+            return failWithReason(villager, `pickupFlour: storage needs at least ${CONFIG.FLOUR_PER_BREAD} flour`);
+        }
+        if (villager.inventory > 0) {
+            return failWithReason(villager, 'pickupFlour: inventory must be empty first');
+        }
 
         gameStateRef.storedFlour -= CONFIG.FLOUR_PER_BREAD;
         villager.inventory = CONFIG.FLOUR_PER_BREAD;
@@ -604,9 +639,15 @@ export const ACTIONS = {
     },
 
     pickupWood: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.storage)) return NodeStatus.FAILURE;
-        if (gameStateRef.storedWood < 1) return NodeStatus.FAILURE;
-        if (villager.inventory > 0) return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.storage)) {
+            return failWithReason(villager, 'pickupWood: must be inside storage building (use goToStorage first)');
+        }
+        if (gameStateRef.storedWood < 1) {
+            return failWithReason(villager, 'pickupWood: no wood in storage');
+        }
+        if (villager.inventory > 0) {
+            return failWithReason(villager, 'pickupWood: inventory must be empty first');
+        }
 
         gameStateRef.storedWood--;
         villager.inventory = 1;
@@ -617,9 +658,15 @@ export const ACTIONS = {
     },
 
     pickupWool: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.storage)) return NodeStatus.FAILURE;
-        if (gameStateRef.storedWool < CONFIG.WOOL_PER_SWEATER) return NodeStatus.FAILURE;
-        if (villager.inventory > 0) return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.storage)) {
+            return failWithReason(villager, 'pickupWool: must be inside storage building (use goToStorage first)');
+        }
+        if (gameStateRef.storedWool < CONFIG.WOOL_PER_SWEATER) {
+            return failWithReason(villager, `pickupWool: storage needs at least ${CONFIG.WOOL_PER_SWEATER} wool`);
+        }
+        if (villager.inventory > 0) {
+            return failWithReason(villager, 'pickupWool: inventory must be empty first');
+        }
 
         gameStateRef.storedWool -= CONFIG.WOOL_PER_SWEATER;
         villager.inventory = CONFIG.WOOL_PER_SWEATER;
@@ -630,9 +677,15 @@ export const ACTIONS = {
     },
 
     pickupFish: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.storage)) return NodeStatus.FAILURE;
-        if (gameStateRef.storedFish < 1) return NodeStatus.FAILURE;
-        if (villager.inventory > 0) return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.storage)) {
+            return failWithReason(villager, 'pickupFish: must be inside storage building (use goToStorage first)');
+        }
+        if (gameStateRef.storedFish < 1) {
+            return failWithReason(villager, 'pickupFish: no fish in storage');
+        }
+        if (villager.inventory > 0) {
+            return failWithReason(villager, 'pickupFish: inventory must be empty first');
+        }
 
         gameStateRef.storedFish--;
         villager.inventory = 1;
@@ -644,9 +697,14 @@ export const ACTIONS = {
 
     // Processing actions
     grindWheat: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.mill)) return NodeStatus.FAILURE;
-        if (villager.inventoryType !== 'wheat' || villager.inventory < CONFIG.WHEAT_PER_FLOUR) {
-            return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.mill)) {
+            return failWithReason(villager, 'grindWheat: must be inside the mill (use goToMill first)');
+        }
+        if (villager.inventoryType !== 'wheat') {
+            return failWithReason(villager, 'grindWheat: must be carrying wheat (use pickupWheat first)');
+        }
+        if (villager.inventory < CONFIG.WHEAT_PER_FLOUR) {
+            return failWithReason(villager, `grindWheat: need at least ${CONFIG.WHEAT_PER_FLOUR} wheat`);
         }
 
         villager.state = 'grinding';
@@ -664,10 +722,17 @@ export const ACTIONS = {
     },
 
     bakeBread: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.house)) return NodeStatus.FAILURE;
-        if (!gameStateRef.fireplaceLit) return NodeStatus.FAILURE; // Need fire for stove
-        if (villager.inventoryType !== 'flour' || villager.inventory < CONFIG.FLOUR_PER_BREAD) {
-            return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.house)) {
+            return failWithReason(villager, 'bakeBread: must be inside the house (use goToStove first)');
+        }
+        if (!gameStateRef.fireplaceLit) {
+            return failWithReason(villager, 'bakeBread: fireplace must be lit (use addWoodToFire first)');
+        }
+        if (villager.inventoryType !== 'flour') {
+            return failWithReason(villager, 'bakeBread: must be carrying flour (use pickupFlour first)');
+        }
+        if (villager.inventory < CONFIG.FLOUR_PER_BREAD) {
+            return failWithReason(villager, `bakeBread: need at least ${CONFIG.FLOUR_PER_BREAD} flour`);
         }
 
         villager.state = 'baking';
@@ -696,7 +761,7 @@ export const ACTIONS = {
 
         if (!nearbyTree) {
             villager.targetTree = null;
-            return NodeStatus.FAILURE;
+            return failWithReason(villager, 'chopTree: must be near a grown tree (use goToForest first)');
         }
 
         villager.state = 'chopping';
@@ -726,7 +791,7 @@ export const ACTIONS = {
 
         if (!nearbySheep) {
             villager.targetSheep = null;
-            return NodeStatus.FAILURE;
+            return failWithReason(villager, 'shearSheep: must be near a sheep with wool (use goToPasture first)');
         }
 
         villager.state = 'shearing';
@@ -747,9 +812,14 @@ export const ACTIONS = {
     },
 
     knitSweater: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.house)) return NodeStatus.FAILURE;
-        if (villager.inventoryType !== 'wool' || villager.inventory < CONFIG.WOOL_PER_SWEATER) {
-            return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.house)) {
+            return failWithReason(villager, 'knitSweater: must be inside the house (use goToKnittingStation first)');
+        }
+        if (villager.inventoryType !== 'wool') {
+            return failWithReason(villager, 'knitSweater: must be carrying wool (use pickupWool first)');
+        }
+        if (villager.inventory < CONFIG.WOOL_PER_SWEATER) {
+            return failWithReason(villager, `knitSweater: need at least ${CONFIG.WOOL_PER_SWEATER} wool`);
         }
 
         villager.state = 'knitting';
@@ -770,7 +840,9 @@ export const ACTIONS = {
 
     // Fishing actions
     catchFish: (villager) => {
-        if (!isNearLocation(villager, LOCATIONS.pond, 2)) return NodeStatus.FAILURE;
+        if (!isNearLocation(villager, LOCATIONS.pond, 2)) {
+            return failWithReason(villager, 'catchFish: must be near the pond (use goToPond first)');
+        }
 
         villager.state = 'fishing';
         villager.actionProgress++;
@@ -796,10 +868,17 @@ export const ACTIONS = {
     },
 
     cookFish: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.house)) return NodeStatus.FAILURE;
-        if (!gameStateRef.fireplaceLit) return NodeStatus.FAILURE;
-        if (villager.inventoryType !== 'fish' || villager.inventory < 1) {
-            return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.house)) {
+            return failWithReason(villager, 'cookFish: must be inside the house (use goToFireplace first)');
+        }
+        if (!gameStateRef.fireplaceLit) {
+            return failWithReason(villager, 'cookFish: fireplace must be lit (use addWoodToFire first)');
+        }
+        if (villager.inventoryType !== 'fish') {
+            return failWithReason(villager, 'cookFish: must be carrying fish (use pickupFish first)');
+        }
+        if (villager.inventory < 1) {
+            return failWithReason(villager, 'cookFish: need at least 1 fish');
         }
 
         villager.state = 'cooking';
@@ -820,8 +899,12 @@ export const ACTIONS = {
 
     // Eating actions
     eatBread: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.storage)) return NodeStatus.FAILURE;
-        if (gameStateRef.storedBread <= 0) return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.storage)) {
+            return failWithReason(villager, 'eatBread: must be inside storage building (use goToStorage first)');
+        }
+        if (gameStateRef.storedBread <= 0) {
+            return failWithReason(villager, 'eatBread: no bread in storage');
+        }
 
         gameStateRef.storedBread--;
         villager.hunger = Math.min(100, villager.hunger + CONFIG.HUNGER_RESTORE);
@@ -831,8 +914,12 @@ export const ACTIONS = {
     },
 
     eatCookedFish: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.storage)) return NodeStatus.FAILURE;
-        if (gameStateRef.storedCookedFish <= 0) return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.storage)) {
+            return failWithReason(villager, 'eatCookedFish: must be inside storage building (use goToStorage first)');
+        }
+        if (gameStateRef.storedCookedFish <= 0) {
+            return failWithReason(villager, 'eatCookedFish: no cooked fish in storage');
+        }
 
         gameStateRef.storedCookedFish--;
         villager.hunger = Math.min(100, villager.hunger + CONFIG.FISH_HUNGER_RESTORE);
@@ -843,9 +930,15 @@ export const ACTIONS = {
 
     // Warmth actions
     putOnSweater: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.storage)) return NodeStatus.FAILURE;
-        if (gameStateRef.storedSweaters <= 0) return NodeStatus.FAILURE;
-        if (villager.wearingSweater) return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.storage)) {
+            return failWithReason(villager, 'putOnSweater: must be inside storage building (use goToStorage first)');
+        }
+        if (gameStateRef.storedSweaters <= 0) {
+            return failWithReason(villager, 'putOnSweater: no sweaters in storage');
+        }
+        if (villager.wearingSweater) {
+            return failWithReason(villager, 'putOnSweater: already wearing a sweater');
+        }
 
         gameStateRef.storedSweaters--;
         villager.wearingSweater = true;
@@ -855,7 +948,9 @@ export const ACTIONS = {
     },
 
     takeOffSweater: (villager) => {
-        if (!villager.wearingSweater) return NodeStatus.FAILURE;
+        if (!villager.wearingSweater) {
+            return failWithReason(villager, 'takeOffSweater: not wearing a sweater');
+        }
 
         villager.wearingSweater = false;
         gameStateRef.storedSweaters++;
@@ -865,9 +960,14 @@ export const ACTIONS = {
     },
 
     addWoodToFire: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.house)) return NodeStatus.FAILURE;
-        if (villager.inventoryType !== 'wood' || villager.inventory < 1) {
-            return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.house)) {
+            return failWithReason(villager, 'addWoodToFire: must be inside the house (use goToFireplace first)');
+        }
+        if (villager.inventoryType !== 'wood') {
+            return failWithReason(villager, 'addWoodToFire: must be carrying wood (use pickupWood first)');
+        }
+        if (villager.inventory < 1) {
+            return failWithReason(villager, 'addWoodToFire: need at least 1 wood');
         }
 
         gameStateRef.fireplaceWood += villager.inventory;
@@ -880,8 +980,12 @@ export const ACTIONS = {
     },
 
     warmByFire: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.house)) return NodeStatus.FAILURE;
-        if (!gameStateRef.fireplaceLit) return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.house)) {
+            return failWithReason(villager, 'warmByFire: must be inside the house (use goToFireplace first)');
+        }
+        if (!gameStateRef.fireplaceLit) {
+            return failWithReason(villager, 'warmByFire: fireplace must be lit (use addWoodToFire first)');
+        }
 
         villager.state = 'warming';
         // Warmth will naturally increase due to location-based system
@@ -893,7 +997,9 @@ export const ACTIONS = {
     },
 
     sleep: (villager) => {
-        if (!isInsideBuilding(villager, LOCATIONS.house)) return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.house)) {
+            return failWithReason(villager, 'sleep: must be inside the house (use goToHouse first)');
+        }
 
         villager.state = 'sleeping';
         villager.energy = Math.min(100, villager.energy + CONFIG.ENERGY_RESTORE);
