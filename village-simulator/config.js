@@ -71,19 +71,20 @@ export const TERRAIN_TYPES = {
 export const LOCATIONS = {
     // House with fireplace, stove, and knitting area
     // Outer dimensions include walls. Interior is (w-2) x (h-2)
-    house: { x: 3, y: 2, w: 7, h: 5, doorX: 6, doorY: 6 }, // Door at bottom, x=6
-    storage: { x: 17, y: 5, w: 4, h: 4, doorX: 18, doorY: 8 },
-    well: { x: 11, y: 5, w: 2, h: 2 }, // No walls
-    mill: { x: 0, y: 4, w: 4, h: 4, doorX: 2, doorY: 7 },
-    // Fields (only 2 now, pasture replaces one)
+    // World is 24 wide x 18 tall (tiles 0-23 x 0-17)
+    house: { x: 3, y: 2, w: 7, h: 5, doorX: 6, doorY: 6 }, // Door at bottom center
+    storage: { x: 14, y: 2, w: 4, h: 4, doorX: 16, doorY: 5 }, // Door at bottom center
+    well: { x: 11, y: 7, w: 2, h: 2 }, // No walls
+    mill: { x: 0, y: 4, w: 4, h: 4, doorX: 2, doorY: 7 }, // Door at bottom center
+    // Fields
     field1: { x: 5, y: 11, w: 5, h: 4 },
-    field2: { x: 12, y: 11, w: 5, h: 4 },
-    // Forest area for trees (top-right corner, 3x4 to fit in bounds)
-    forest: { x: 17, y: 0, w: 3, h: 4 },
-    // Sheep pasture with fence (replaces field3)
-    pasture: { x: 19, y: 11, w: 4, h: 4, gateX: 20, gateY: 14 },
+    field2: { x: 11, y: 11, w: 5, h: 4 },
+    // Forest area for trees (top-right, within bounds)
+    forest: { x: 20, y: 0, w: 4, h: 4 },
+    // Sheep pasture with fence
+    pasture: { x: 18, y: 11, w: 5, h: 5, gateX: 20, gateY: 15 },
     // Fishing pond
-    pond: { x: 12, y: 1, w: 4, h: 3 }
+    pond: { x: 0, y: 0, w: 3, h: 3 }
 };
 
 // Door positions for pathfinding (tile coordinates of door - these are walkable tiles)
