@@ -72,17 +72,17 @@ export const LOCATIONS = {
     // House with fireplace, stove, and knitting area
     // Outer dimensions include walls. Interior is (w-2) x (h-2)
     house: { x: 3, y: 2, w: 7, h: 5, doorX: 6, doorY: 6 }, // Door at bottom, x=6
-    storage: { x: 17, y: 3, w: 4, h: 4, doorX: 18, doorY: 6 },
+    storage: { x: 17, y: 5, w: 4, h: 4, doorX: 18, doorY: 8 },
     well: { x: 11, y: 5, w: 2, h: 2 }, // No walls
     mill: { x: 0, y: 4, w: 4, h: 4, doorX: 2, doorY: 7 },
     // Fields (only 2 now, pasture replaces one)
     field1: { x: 5, y: 11, w: 5, h: 4 },
     field2: { x: 12, y: 11, w: 5, h: 4 },
-    // Forest area for trees (moved right to avoid storage overlap)
-    forest: { x: 22, y: 1, w: 4, h: 5 },
+    // Forest area for trees (top-right corner, 3x4 to fit in bounds)
+    forest: { x: 17, y: 0, w: 3, h: 4 },
     // Sheep pasture with fence (replaces field3)
     pasture: { x: 19, y: 11, w: 4, h: 4, gateX: 20, gateY: 14 },
-    // Fishing pond - larger and better positioned
+    // Fishing pond
     pond: { x: 12, y: 1, w: 4, h: 3 }
 };
 

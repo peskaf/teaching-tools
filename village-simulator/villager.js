@@ -1,4 +1,4 @@
-import { CONFIG, LOCATIONS, DOOR_POSITIONS, getBedPosition, HOUSE_POSITIONS } from './config.js';
+import { CONFIG, LOCATIONS, DOOR_POSITIONS, getBedPosition, HOUSE_POSITIONS, TERRAIN_TYPES } from './config.js';
 import { world, findFieldNeedingAttention, findFieldNeedingWater, findTreeToChop, findSheepToShear, isBlockedByWall, hasFireOutbreak, extinguishFire } from './world.js';
 import {
     NodeStatus,
@@ -155,15 +155,41 @@ export function setGameStateRef(gs) {
     gameStateRef = gs;
 }
 
-// Helper to check if villager is inside a building (within the walls, not on them)
+// Helper to check if villager is inside a building or on its door (able to proceed to interior)
 function isInsideBuilding(villager, location) {
     // Interior is 1 tile inside the walls on all sides
     // So interior x: from x+1 to x+w-2 (inclusive)
     // Interior y: from y+1 to y+h-2 (inclusive)
-    return villager.x >= location.x + 1 &&
-           villager.x <= location.x + location.w - 2 &&
-           villager.y >= location.y + 1 &&
-           villager.y <= location.y + location.h - 2;
+    const inInterior = villager.x >= location.x + 1 &&
+                       villager.x <= location.x + location.w - 2 &&
+                       villager.y >= location.y + 1 &&
+                       villager.y <= location.y + location.h - 2;
+
+    if (inInterior) return true;
+
+    // Also check if villager is on/near the door tile (within 0.8 tiles of door center)
+    // This allows villagers to pass through the door without getting stuck
+    if (location.doorX !== undefined) {
+        const doorCenterX = location.doorX + 0.5;
+        const doorCenterY = location.doorY + 0.5;
+        const distToDoor = Math.sqrt(
+            Math.pow(villager.x - doorCenterX, 2) +
+            Math.pow(villager.y - doorCenterY, 2)
+        );
+        if (distToDoor < 0.8) return true;
+    }
+    // Check for gate (pasture)
+    if (location.gateX !== undefined) {
+        const gateCenterX = location.gateX + 0.5;
+        const gateCenterY = location.gateY + 0.5;
+        const distToGate = Math.sqrt(
+            Math.pow(villager.x - gateCenterX, 2) +
+            Math.pow(villager.y - gateCenterY, 2)
+        );
+        if (distToGate < 0.8) return true;
+    }
+
+    return false;
 }
 
 // Check if a target is inside a specific building/fenced area
@@ -280,23 +306,57 @@ export const CONDITIONS = {
     storageHasCookedFish: (v) => gameStateRef.storedCookedFish > 0
 };
 
+// Helper to check if a tile is a door or gate (walkable entry points)
+function isDoorOrGate(tileX, tileY) {
+    if (tileY < 0 || tileY >= world.height || tileX < 0 || tileX >= world.width) {
+        return false;
+    }
+    const terrain = world.terrain[tileY][tileX];
+    return terrain === TERRAIN_TYPES.DOOR || terrain === TERRAIN_TYPES.GATE;
+}
+
 // Helper to check if a move is valid (doesn't cut corners through walls)
 function canMoveTo(fromX, fromY, toX, toY) {
     // Check destination
     if (isBlockedByWall(toX, toY)) return false;
 
-    // For diagonal moves, also check the two adjacent tiles to prevent corner cutting
     const fromTileX = Math.floor(fromX);
     const fromTileY = Math.floor(fromY);
     const toTileX = Math.floor(toX);
     const toTileY = Math.floor(toY);
 
+    // If we're on a door/gate tile, allow movement in any direction to adjacent non-wall tiles
+    // This enables smooth passage through doors
+    if (isDoorOrGate(fromTileX, fromTileY)) {
+        return true; // Already checked destination isn't blocked
+    }
+
+    // If moving to a door/gate tile, allow it (approaching the door)
+    if (isDoorOrGate(toTileX, toTileY)) {
+        return true;
+    }
+
+    // For diagonal moves, also check the two adjacent tiles to prevent corner cutting
     // If moving diagonally (both X and Y tile changed)
     if (fromTileX !== toTileX && fromTileY !== toTileY) {
         // Check both corner tiles to prevent cutting through diagonal walls
-        if (isBlockedByWall(toTileX + 0.5, fromTileY + 0.5) &&
-            isBlockedByWall(fromTileX + 0.5, toTileY + 0.5)) {
-            return false; // Both corners blocked, can't cut through
+        const corner1Blocked = isBlockedByWall(toTileX + 0.5, fromTileY + 0.5);
+        const corner2Blocked = isBlockedByWall(fromTileX + 0.5, toTileY + 0.5);
+
+        // Block if both corners are walls (can't squeeze through diagonal gap)
+        if (corner1Blocked && corner2Blocked) {
+            return false;
+        }
+
+        // Also block if one corner is a wall and we're not going through a door
+        // This prevents cutting corners around building edges
+        if (corner1Blocked || corner2Blocked) {
+            // Only allow if one of the corners is a door/gate
+            const corner1IsDoor = isDoorOrGate(toTileX, fromTileY);
+            const corner2IsDoor = isDoorOrGate(fromTileX, toTileY);
+            if (!corner1IsDoor && !corner2IsDoor) {
+                return false;
+            }
         }
     }
 
