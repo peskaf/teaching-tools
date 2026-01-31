@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Village AI - Behavioral Tree Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            grid-template-rows: auto 1fr;
+            height: 100vh;
+            gap: 0;
+        }
+
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            background: linear-gradient(180deg, #16213e 0%, #1a1a2e 100%);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid #0f3460;
+        }
+
+        .header h1 {
+            font-size: 1.4em;
+            color: #e94560;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header h1::before {
+            content: "🏘️";
+        }
+
+        .time-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .time-display {
+            background: #0f3460;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            min-width: 180px;
+            text-align: center;
+        }
+
+        .time-display .day {
+            color: #e94560;
+            font-weight: bold;
+        }
+
+        .time-display .time {
+            color: #ffc857;
+        }
+
+        .speed-controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .speed-btn {
+            background: #0f3460;
+            border: 2px solid #16213e;
+            color: #eee;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+
+        .speed-btn:hover {
+            background: #1a3a6e;
+        }
+
+        .speed-btn.active {
+            background: #e94560;
+            border-color: #e94560;
+        }
+
+        .sim-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .sim-btn {
+            background: #27ae60;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            transition: all 0.2s;
+        }
+
+        .sim-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .sim-btn.stop {
+            background: #e74c3c;
+        }
+
+        .sim-btn.reset {
+            background: #3498db;
+        }
+
+        /* Game Area */
+        .game-area {
+            background: #1a1a2e;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Side Panel */
+        .side-panel {
+            background: #16213e;
+            border-left: 2px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-tabs {
+            display: flex;
+            background: #0f3460;
+        }
+
+        .panel-tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #888;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .panel-tab:hover {
+            color: #eee;
+        }
+
+        .panel-tab.active {
+            background: #16213e;
+            color: #e94560;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .panel-section {
+            display: none;
+        }
+
+        .panel-section.active {
+            display: block;
+        }
+
+        /* Villager Selection */
+        .villager-select {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .villager-btn {
+            flex: 1;
+            padding: 10px 8px;
+            background: #0f3460;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #eee;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+
+        .villager-btn:hover {
+            border-color: #e94560;
+        }
+
+        .villager-btn.active {
+            border-color: #e94560;
+            background: #1a3a6e;
+        }
+
+        .villager-btn .emoji {
+            font-size: 1.5em;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        /* Behavior Tree Editor */
+        .tree-editor {
+            background: #0f3460;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .tree-editor h3 {
+            color: #e94560;
+            margin-bottom: 12px;
+            font-size: 0.95em;
+        }
+
+        .tree-container {
+            background: #1a1a2e;
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .tree-node {
+            margin: 4px 0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tree-node::before {
+            content: "";
+            position: absolute;
+            left: -15px;
+            top: 50%;
+            width: 10px;
+            height: 2px;
+            background: #444;
+        }
+
+        .tree-node:first-child::before {
+            display: none;
+        }
+
+        .tree-node.selector {
+            background: #9b59b6;
+            border-left: 4px solid #8e44ad;
+        }
+
+        .tree-node.sequence {
+            background: #3498db;
+            border-left: 4px solid #2980b9;
+        }
+
+        .tree-node.condition {
+            background: #f39c12;
+            border-left: 4px solid #d68910;
+            color: #1a1a2e;
+        }
+
+        .tree-node.action {
+            background: #27ae60;
+            border-left: 4px solid #1e8449;
+        }
+
+        .tree-node.running {
+            box-shadow: 0 0 10px #ffc857, 0 0 20px #ffc857;
+        }
+
+        .tree-node.success {
+            box-shadow: 0 0 10px #27ae60;
+        }
+
+        .tree-node.failure {
+            box-shadow: 0 0 10px #e74c3c;
+        }
+
+        .tree-children {
+            margin-left: 20px;
+            border-left: 2px solid #444;
+            padding-left: 10px;
+        }
+
+        .node-icon {
+            font-size: 1.1em;
+        }
+
+        .node-delete {
+            margin-left: auto;
+            background: rgba(231, 76, 60, 0.5);
+            border: none;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.7em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .tree-node:hover .node-delete {
+            opacity: 1;
+        }
+
+        .node-delete:hover {
+            background: #e74c3c;
+        }
+
+        /* Node Palette */
+        .node-palette {
+            background: #0f3460;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .node-palette h3 {
+            color: #e94560;
+            margin-bottom: 12px;
+            font-size: 0.95em;
+        }
+
+        .palette-category {
+            margin-bottom: 12px;
+        }
+
+        .palette-category h4 {
+            color: #888;
+            font-size: 0.8em;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .palette-nodes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .palette-node {
+            padding: 6px 10px;
+            border-radius: 5px;
+            font-size: 0.75em;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .palette-node:hover {
+            transform: scale(1.05);
+            border-color: white;
+        }
+
+        .palette-node.selector {
+            background: #9b59b6;
+        }
+
+        .palette-node.sequence {
+            background: #3498db;
+        }
+
+        .palette-node.condition {
+            background: #f39c12;
+            color: #1a1a2e;
+        }
+
+        .palette-node.action {
+            background: #27ae60;
+        }
+
+        /* Status Panel */
+        .status-section h3 {
+            color: #e94560;
+            margin-bottom: 12px;
+        }
+
+        .villager-status {
+            background: #0f3460;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+
+        .villager-status h4 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 0.85em;
+            color: #aaa;
+        }
+
+        .status-row span:last-child {
+            color: #eee;
+        }
+
+        .status-bar {
+            height: 6px;
+            background: #1a1a2e;
+            border-radius: 3px;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+
+        .status-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        .status-bar-fill.energy {
+            background: linear-gradient(90deg, #e74c3c, #f39c12, #27ae60);
+        }
+
+        .inventory-display {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .inventory-item {
+            background: #1a1a2e;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+
+        /* World Stats */
+        .world-stats {
+            background: #0f3460;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .world-stats h3 {
+            color: #e94560;
+            margin-bottom: 12px;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stat-item {
+            background: #1a1a2e;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-item .value {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #ffc857;
+        }
+
+        .stat-item .label {
+            font-size: 0.75em;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        /* Instructions */
+        .instructions {
+            background: #0f3460;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .instructions h3 {
+            color: #e94560;
+            margin-bottom: 10px;
+            font-size: 0.95em;
+        }
+
+        .instructions p {
+            font-size: 0.8em;
+            color: #aaa;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .instructions ul {
+            font-size: 0.8em;
+            color: #aaa;
+            padding-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 4px;
+        }
+
+        .instructions code {
+            background: #1a1a2e;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #ffc857;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.75em;
+            color: #aaa;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1a2e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #0f3460;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #1a3a6e;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: #0f3460;
+            color: #eee;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            max-width: 200px;
+        }
+
+        .tooltip::after {
+            content: "";
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid #0f3460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Village AI Simulator</h1>
+            <div class="time-controls">
+                <div class="time-display">
+                    <span class="day">Day 1</span> · <span class="time">06:00</span>
+                </div>
+                <div class="speed-controls">
+                    <button class="speed-btn" data-speed="0">⏸</button>
+                    <button class="speed-btn active" data-speed="1">1×</button>
+                    <button class="speed-btn" data-speed="2">2×</button>
+                    <button class="speed-btn" data-speed="5">5×</button>
+                    <button class="speed-btn" data-speed="10">10×</button>
+                </div>
+            </div>
+            <div class="sim-controls">
+                <button class="sim-btn reset" onclick="resetSimulation()">🔄 Reset</button>
+                <button class="sim-btn" id="startBtn" onclick="toggleSimulation()">▶ Start</button>
+            </div>
+        </header>
+
+        <div class="game-area">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+
+        <div class="side-panel">
+            <div class="panel-tabs">
+                <button class="panel-tab active" data-tab="trees">🌳 Trees</button>
+                <button class="panel-tab" data-tab="status">📊 Status</button>
+                <button class="panel-tab" data-tab="help">❓ Help</button>
+            </div>
+
+            <div class="panel-content">
+                <!-- Trees Panel -->
+                <div class="panel-section active" id="treesPanel">
+                    <div class="villager-select">
+                        <button class="villager-btn active" data-villager="0">
+                            <span class="emoji">👨‍🌾</span>
+                            Karel
+                        </button>
+                        <button class="villager-btn" data-villager="1">
+                            <span class="emoji">👩‍🌾</span>
+                            Marie
+                        </button>
+                        <button class="villager-btn" data-villager="2">
+                            <span class="emoji">👦</span>
+                            Tomáš
+                        </button>
+                    </div>
+
+                    <div class="tree-editor">
+                        <h3>📐 Behavior Tree</h3>
+                        <div class="tree-container" id="treeContainer">
+                            <!-- Tree will be rendered here -->
+                        </div>
+                    </div>
+
+                    <div class="node-palette">
+                        <h3>🧩 Add Nodes</h3>
+                        <p style="font-size: 0.75em; color: #888; margin-bottom: 10px;">Click a node below to add it to the tree</p>
+                        
+                        <div class="palette-category">
+                            <h4>Control Nodes</h4>
+                            <div class="palette-nodes">
+                                <div class="palette-node selector" data-type="selector" data-subtype="selector">❓ Selector</div>
+                                <div class="palette-node sequence" data-type="sequence" data-subtype="sequence">➡️ Sequence</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Conditions</h4>
+                            <div class="palette-nodes">
+                                <div class="palette-node condition" data-type="condition" data-subtype="isNight">🌙 Is Night?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="isDay">☀️ Is Day?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="isTired">😴 Is Tired?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="hasItems">🎒 Has Items?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="cropsReady">🌾 Crops Ready?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="fieldEmpty">🟫 Field Empty?</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Actions</h4>
+                            <div class="palette-nodes">
+                                <div class="palette-node action" data-type="action" data-subtype="goToField">🚶 Go to Field</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToHouse">🏠 Go to House</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToStorage">📦 Go to Storage</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToWell">💧 Go to Well</div>
+                                <div class="palette-node action" data-type="action" data-subtype="plantCrops">🌱 Plant Crops</div>
+                                <div class="palette-node action" data-type="action" data-subtype="harvestCrops">🌾 Harvest</div>
+                                <div class="palette-node action" data-type="action" data-subtype="waterCrops">💧 Water Crops</div>
+                                <div class="palette-node action" data-type="action" data-subtype="storeItems">📥 Store Items</div>
+                                <div class="palette-node action" data-type="action" data-subtype="sleep">😴 Sleep</div>
+                                <div class="palette-node action" data-type="action" data-subtype="rest">☕ Rest</div>
+                            </div>
+                        </div>
+
+                        <div class="legend">
+                            <div class="legend-item"><div class="legend-color" style="background:#9b59b6"></div> Selector: Try until success</div>
+                            <div class="legend-item"><div class="legend-color" style="background:#3498db"></div> Sequence: Do all in order</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Panel -->
+                <div class="panel-section" id="statusPanel">
+                    <div class="status-section">
+                        <h3>👥 Villagers</h3>
+                        <div id="villagerStatuses"></div>
+                    </div>
+
+                    <div class="world-stats">
+                        <h3>🌍 Village Stats</h3>
+                        <div class="stat-grid">
+                            <div class="stat-item">
+                                <div class="value" id="statStorage">0</div>
+                                <div class="label">Stored Crops</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="statPlanted">0</div>
+                                <div class="label">Fields Planted</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="statHarvested">0</div>
+                                <div class="label">Total Harvested</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="statDays">1</div>
+                                <div class="label">Days Passed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Help Panel -->
+                <div class="panel-section" id="helpPanel">
+                    <div class="instructions">
+                        <h3>🎮 How to Play</h3>
+                        <p>Design behavior trees for each villager to automate their daily tasks in the village.</p>
+                        
+                        <h3 style="margin-top: 15px;">🌳 Behavior Trees</h3>
+                        <p>Trees are evaluated from top to bottom each tick:</p>
+                        <ul>
+                            <li><strong>Selector (❓)</strong> - Tries children until one succeeds</li>
+                            <li><strong>Sequence (➡️)</strong> - Runs all children in order, stops on failure</li>
+                            <li><strong>Condition</strong> - Checks if something is true</li>
+                            <li><strong>Action</strong> - Makes the villager do something</li>
+                        </ul>
+
+                        <h3 style="margin-top: 15px;">📋 Example Tree</h3>
+                        <p>A simple farming routine:</p>
+                        <ul>
+                            <li>Selector (root)
+                                <ul>
+                                    <li>Sequence: Sleep at night
+                                        <ul>
+                                            <li>Condition: Is Night?</li>
+                                            <li>Action: Go to House</li>
+                                            <li>Action: Sleep</li>
+                                        </ul>
+                                    </li>
+                                    <li>Sequence: Store crops
+                                        <ul>
+                                            <li>Condition: Has Items?</li>
+                                            <li>Action: Go to Storage</li>
+                                            <li>Action: Store Items</li>
+                                        </ul>
+                                    </li>
+                                    <li>Sequence: Harvest
+                                        <ul>
+                                            <li>Condition: Crops Ready?</li>
+                                            <li>Action: Go to Field</li>
+                                            <li>Action: Harvest</li>
+                                        </ul>
+                                    </li>
+                                    <li>Sequence: Plant
+                                        <ul>
+                                            <li>Condition: Field Empty?</li>
+                                            <li>Action: Go to Field</li>
+                                            <li>Action: Plant Crops</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                        <h3 style="margin-top: 15px;">⏰ Time</h3>
+                        <p><code>06:00-20:00</code> = Day</p>
+                        <p><code>20:00-06:00</code> = Night</p>
+                        <p>Crops take ~4 hours to grow. Villagers get tired over time.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== GAME CONFIGURATION ====================
+        const CONFIG = {
+            TILE_SIZE: 32,
+            DAY_LENGTH: 24 * 60, // 24 hours in game minutes
+            TICK_RATE: 60, // ms per tick at 1x speed
+            CROP_GROW_TIME: 4 * 60, // 4 hours to grow
+            ENERGY_DRAIN: 0.05, // per tick
+            ENERGY_RESTORE: 0.3, // per tick while sleeping
+            NIGHT_START: 20 * 60, // 20:00
+            NIGHT_END: 6 * 60, // 06:00
+        };
+
+        // ==================== GAME STATE ====================
+        let gameState = {
+            running: false,
+            speed: 1,
+            time: 6 * 60, // Start at 6:00 AM
+            day: 1,
+            totalHarvested: 0,
+            storedCrops: 0
+        };
+
+        // ==================== WORLD DATA ====================
+        const TERRAIN_TYPES = {
+            GRASS: 0,
+            DIRT: 1,
+            WATER: 2,
+            FIELD: 3,
+            PATH: 4,
+            FLOOR: 5
+        };
+
+        let world = {
+            width: 24,
+            height: 18,
+            terrain: [],
+            buildings: [],
+            fields: [],
+            storage: { x: 0, y: 0, crops: 0 }
+        };
+
+        // ==================== VILLAGERS ====================
+        let villagers = [
+            {
+                id: 0,
+                name: "Karel",
+                emoji: "👨‍🌾",
+                color: "#e74c3c",
+                x: 10,
+                y: 8,
+                targetX: null,
+                targetY: null,
+                energy: 100,
+                inventory: 0,
+                state: "idle",
+                currentAction: null,
+                behaviorTree: null,
+                treeState: null
+            },
+            {
+                id: 1,
+                name: "Marie",
+                emoji: "👩‍🌾",
+                color: "#3498db",
+                x: 12,
+                y: 8,
+                targetX: null,
+                targetY: null,
+                energy: 100,
+                inventory: 0,
+                state: "idle",
+                currentAction: null,
+                behaviorTree: null,
+                treeState: null
+            },
+            {
+                id: 2,
+                name: "Tomáš",
+                emoji: "👦",
+                color: "#27ae60",
+                x: 11,
+                y: 9,
+                targetX: null,
+                targetY: null,
+                energy: 100,
+                inventory: 0,
+                state: "idle",
+                currentAction: null,
+                behaviorTree: null,
+                treeState: null
+            }
+        ];
+
+        let selectedVillager = 0;
+
+        // ==================== LOCATIONS ====================
+        const locations = {
+            house: { x: 4, y: 4, w: 4, h: 3 },
+            storage: { x: 16, y: 4, w: 3, h: 3 },
+            well: { x: 11, y: 6, w: 2, h: 2 },
+            field1: { x: 3, y: 11, w: 5, h: 4 },
+            field2: { x: 10, y: 11, w: 5, h: 4 },
+            field3: { x: 17, y: 11, w: 4, h: 4 }
+        };
+
+        // ==================== CANVAS SETUP ====================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // ==================== WORLD GENERATION ====================
+        function generateWorld() {
+            // Initialize terrain
+            world.terrain = [];
+            for (let y = 0; y < world.height; y++) {
+                world.terrain[y] = [];
+                for (let x = 0; x < world.width; x++) {
+                    world.terrain[y][x] = TERRAIN_TYPES.GRASS;
+                }
+            }
+
+            // Add paths
+            for (let x = 0; x < world.width; x++) {
+                world.terrain[8][x] = TERRAIN_TYPES.PATH;
+                world.terrain[9][x] = TERRAIN_TYPES.PATH;
+            }
+            for (let y = 4; y < 15; y++) {
+                world.terrain[y][8] = TERRAIN_TYPES.PATH;
+                world.terrain[y][15] = TERRAIN_TYPES.PATH;
+            }
+
+            // Add buildings
+            world.buildings = [
+                { ...locations.house, type: 'house', name: 'House' },
+                { ...locations.storage, type: 'storage', name: 'Storage' },
+                { ...locations.well, type: 'well', name: 'Well' }
+            ];
+
+            // Initialize fields with crops
+            world.fields = [];
+            const fieldDefs = [locations.field1, locations.field2, locations.field3];
+            fieldDefs.forEach((fd, fi) => {
+                for (let dy = 0; dy < fd.h; dy++) {
+                    for (let dx = 0; dx < fd.w; dx++) {
+                        world.terrain[fd.y + dy][fd.x + dx] = TERRAIN_TYPES.FIELD;
+                        world.fields.push({
+                            x: fd.x + dx,
+                            y: fd.y + dy,
+                            state: 'empty', // empty, growing, ready
+                            growthTimer: 0,
+                            fieldIndex: fi
+                        });
+                    }
+                }
+            });
+
+            // Storage location
+            world.storage = { x: locations.storage.x + 1, y: locations.storage.y + 2, crops: 0 };
+        }
+
+        // ==================== BEHAVIOR TREE SYSTEM ====================
+        const NodeStatus = {
+            SUCCESS: 'success',
+            FAILURE: 'failure',
+            RUNNING: 'running'
+        };
+
+        class BehaviorNode {
+            constructor(type, subtype, name, children = []) {
+                this.id = Math.random().toString(36).substr(2, 9);
+                this.type = type;
+                this.subtype = subtype;
+                this.name = name;
+                this.children = children;
+                this.status = null;
+            }
+
+            tick(villager) {
+                return NodeStatus.FAILURE;
+            }
+
+            reset() {
+                this.status = null;
+                this.children.forEach(c => c.reset());
+            }
+        }
+
+        class SelectorNode extends BehaviorNode {
+            constructor(children = []) {
+                super('selector', 'selector', 'Selector', children);
+                this.currentChild = 0;
+            }
+
+            tick(villager) {
+                for (let i = this.currentChild; i < this.children.length; i++) {
+                    const status = this.children[i].tick(villager);
+                    if (status === NodeStatus.RUNNING) {
+                        this.currentChild = i;
+                        this.status = NodeStatus.RUNNING;
+                        return NodeStatus.RUNNING;
+                    }
+                    if (status === NodeStatus.SUCCESS) {
+                        this.currentChild = 0;
+                        this.status = NodeStatus.SUCCESS;
+                        return NodeStatus.SUCCESS;
+                    }
+                }
+                this.currentChild = 0;
+                this.status = NodeStatus.FAILURE;
+                return NodeStatus.FAILURE;
+            }
+
+            reset() {
+                super.reset();
+                this.currentChild = 0;
+            }
+        }
+
+        class SequenceNode extends BehaviorNode {
+            constructor(children = []) {
+                super('sequence', 'sequence', 'Sequence', children);
+                this.currentChild = 0;
+            }
+
+            tick(villager) {
+                for (let i = this.currentChild; i < this.children.length; i++) {
+                    const status = this.children[i].tick(villager);
+                    if (status === NodeStatus.RUNNING) {
+                        this.currentChild = i;
+                        this.status = NodeStatus.RUNNING;
+                        return NodeStatus.RUNNING;
+                    }
+                    if (status === NodeStatus.FAILURE) {
+                        this.currentChild = 0;
+                        this.status = NodeStatus.FAILURE;
+                        return NodeStatus.FAILURE;
+                    }
+                }
+                this.currentChild = 0;
+                this.status = NodeStatus.SUCCESS;
+                return NodeStatus.SUCCESS;
+            }
+
+            reset() {
+                super.reset();
+                this.currentChild = 0;
+            }
+        }
+
+        class ConditionNode extends BehaviorNode {
+            constructor(subtype, name, checkFn) {
+                super('condition', subtype, name);
+                this.checkFn = checkFn;
+            }
+
+            tick(villager) {
+                const result = this.checkFn(villager);
+                this.status = result ? NodeStatus.SUCCESS : NodeStatus.FAILURE;
+                return this.status;
+            }
+        }
+
+        class ActionNode extends BehaviorNode {
+            constructor(subtype, name, actionFn) {
+                super('action', subtype, name);
+                this.actionFn = actionFn;
+            }
+
+            tick(villager) {
+                this.status = this.actionFn(villager);
+                return this.status;
+            }
+        }
+
+        // Condition factory
+        const CONDITIONS = {
+            isNight: (v) => {
+                const time = gameState.time;
+                return time >= CONFIG.NIGHT_START || time < CONFIG.NIGHT_END;
+            },
+            isDay: (v) => {
+                const time = gameState.time;
+                return time >= CONFIG.NIGHT_END && time < CONFIG.NIGHT_START;
+            },
+            isTired: (v) => v.energy < 30,
+            hasItems: (v) => v.inventory > 0,
+            cropsReady: (v) => world.fields.some(f => f.state === 'ready'),
+            fieldEmpty: (v) => world.fields.some(f => f.state === 'empty')
+        };
+
+        // Action factory
+        function createGoToAction(targetGetter) {
+            return (villager) => {
+                const target = targetGetter();
+                if (!target) return NodeStatus.FAILURE;
+                
+                const dx = target.x - villager.x;
+                const dy = target.y - villager.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < 0.5) {
+                    villager.state = 'idle';
+                    return NodeStatus.SUCCESS;
+                }
+                
+                const speed = 0.08;
+                villager.x += (dx / dist) * speed;
+                villager.y += (dy / dist) * speed;
+                villager.state = 'walking';
+                villager.energy -= CONFIG.ENERGY_DRAIN * 0.5;
+                
+                return NodeStatus.RUNNING;
+            };
+        }
+
+        const ACTIONS = {
+            goToField: createGoToAction(() => {
+                // Find nearest field that needs attention
+                const needsAttention = world.fields.filter(f => f.state === 'empty' || f.state === 'ready');
+                if (needsAttention.length === 0) {
+                    const anyField = world.fields[0];
+                    return anyField ? { x: anyField.x + 0.5, y: anyField.y + 0.5 } : null;
+                }
+                return { x: needsAttention[0].x + 0.5, y: needsAttention[0].y + 0.5 };
+            }),
+            goToHouse: createGoToAction(() => ({
+                x: locations.house.x + locations.house.w / 2,
+                y: locations.house.y + locations.house.h
+            })),
+            goToStorage: createGoToAction(() => ({
+                x: locations.storage.x + locations.storage.w / 2,
+                y: locations.storage.y + locations.storage.h
+            })),
+            goToWell: createGoToAction(() => ({
+                x: locations.well.x + locations.well.w / 2,
+                y: locations.well.y + locations.well.h
+            })),
+            
+            plantCrops: (villager) => {
+                const nearbyField = world.fields.find(f => 
+                    f.state === 'empty' && 
+                    Math.abs(f.x - villager.x) < 2 && 
+                    Math.abs(f.y - villager.y) < 2
+                );
+                
+                if (!nearbyField) return NodeStatus.FAILURE;
+                
+                nearbyField.state = 'growing';
+                nearbyField.growthTimer = CONFIG.CROP_GROW_TIME;
+                villager.state = 'planting';
+                villager.energy -= CONFIG.ENERGY_DRAIN * 10;
+                
+                return NodeStatus.SUCCESS;
+            },
+            
+            harvestCrops: (villager) => {
+                const nearbyField = world.fields.find(f => 
+                    f.state === 'ready' && 
+                    Math.abs(f.x - villager.x) < 2 && 
+                    Math.abs(f.y - villager.y) < 2
+                );
+                
+                if (!nearbyField) return NodeStatus.FAILURE;
+                
+                nearbyField.state = 'empty';
+                villager.inventory++;
+                gameState.totalHarvested++;
+                villager.state = 'harvesting';
+                villager.energy -= CONFIG.ENERGY_DRAIN * 10;
+                
+                return NodeStatus.SUCCESS;
+            },
+            
+            waterCrops: (villager) => {
+                // Speeds up growth
+                const nearbyField = world.fields.find(f => 
+                    f.state === 'growing' && 
+                    Math.abs(f.x - villager.x) < 2 && 
+                    Math.abs(f.y - villager.y) < 2
+                );
+                
+                if (!nearbyField) return NodeStatus.FAILURE;
+                
+                nearbyField.growthTimer = Math.max(0, nearbyField.growthTimer - 60);
+                villager.state = 'watering';
+                
+                return NodeStatus.SUCCESS;
+            },
+            
+            storeItems: (villager) => {
+                const dist = Math.sqrt(
+                    Math.pow(villager.x - world.storage.x, 2) + 
+                    Math.pow(villager.y - world.storage.y, 2)
+                );
+                
+                if (dist > 3) return NodeStatus.FAILURE;
+                if (villager.inventory <= 0) return NodeStatus.FAILURE;
+                
+                gameState.storedCrops += villager.inventory;
+                villager.inventory = 0;
+                villager.state = 'storing';
+                
+                return NodeStatus.SUCCESS;
+            },
+            
+            sleep: (villager) => {
+                villager.state = 'sleeping';
+                villager.energy = Math.min(100, villager.energy + CONFIG.ENERGY_RESTORE);
+                
+                if (villager.energy >= 100) {
+                    return NodeStatus.SUCCESS;
+                }
+                return NodeStatus.RUNNING;
+            },
+            
+            rest: (villager) => {
+                villager.state = 'resting';
+                villager.energy = Math.min(100, villager.energy + CONFIG.ENERGY_RESTORE * 0.3);
+                return NodeStatus.SUCCESS;
+            }
+        };
+
+        function createNode(type, subtype) {
+            const nodeNames = {
+                selector: '❓ Selector',
+                sequence: '➡️ Sequence',
+                isNight: '🌙 Is Night?',
+                isDay: '☀️ Is Day?',
+                isTired: '😴 Is Tired?',
+                hasItems: '🎒 Has Items?',
+                cropsReady: '🌾 Crops Ready?',
+                fieldEmpty: '🟫 Field Empty?',
+                goToField: '🚶 Go to Field',
+                goToHouse: '🏠 Go to House',
+                goToStorage: '📦 Go to Storage',
+                goToWell: '💧 Go to Well',
+                plantCrops: '🌱 Plant Crops',
+                harvestCrops: '🌾 Harvest',
+                waterCrops: '💧 Water Crops',
+                storeItems: '📥 Store Items',
+                sleep: '😴 Sleep',
+                rest: '☕ Rest'
+            };
+
+            switch(type) {
+                case 'selector':
+                    return new SelectorNode();
+                case 'sequence':
+                    return new SequenceNode();
+                case 'condition':
+                    return new ConditionNode(subtype, nodeNames[subtype], CONDITIONS[subtype]);
+                case 'action':
+                    return new ActionNode(subtype, nodeNames[subtype], ACTIONS[subtype]);
+            }
+        }
+
+        // ==================== DEFAULT TREES ====================
+        function createDefaultTree() {
+            return new SelectorNode([
+                // Sleep at night
+                new SequenceNode([
+                    new ConditionNode('isNight', '🌙 Is Night?', CONDITIONS.isNight),
+                    new ActionNode('goToHouse', '🏠 Go to House', ACTIONS.goToHouse),
+                    new ActionNode('sleep', '😴 Sleep', ACTIONS.sleep)
+                ]),
+                // Rest if tired
+                new SequenceNode([
+                    new ConditionNode('isTired', '😴 Is Tired?', CONDITIONS.isTired),
+                    new ActionNode('rest', '☕ Rest', ACTIONS.rest)
+                ]),
+                // Store items if has any
+                new SequenceNode([
+                    new ConditionNode('hasItems', '🎒 Has Items?', CONDITIONS.hasItems),
+                    new ActionNode('goToStorage', '📦 Go to Storage', ACTIONS.goToStorage),
+                    new ActionNode('storeItems', '📥 Store Items', ACTIONS.storeItems)
+                ]),
+                // Harvest if ready
+                new SequenceNode([
+                    new ConditionNode('cropsReady', '🌾 Crops Ready?', CONDITIONS.cropsReady),
+                    new ActionNode('goToField', '🚶 Go to Field', ACTIONS.goToField),
+                    new ActionNode('harvestCrops', '🌾 Harvest', ACTIONS.harvestCrops)
+                ]),
+                // Plant if empty
+                new SequenceNode([
+                    new ConditionNode('fieldEmpty', '🟫 Field Empty?', CONDITIONS.fieldEmpty),
+                    new ActionNode('goToField', '🚶 Go to Field', ACTIONS.goToField),
+                    new ActionNode('plantCrops', '🌱 Plant Crops', ACTIONS.plantCrops)
+                ])
+            ]);
+        }
+
+        // ==================== TREE UI ====================
+        let selectedNodeId = null;
+
+        function renderTreeNode(node, depth = 0) {
+            const statusClass = node.status || '';
+            const isSelected = selectedNodeId === node.id;
+            
+            let html = `
+                <div class="tree-node ${node.type} ${statusClass}" 
+                     data-id="${node.id}" 
+                     style="${isSelected ? 'outline: 2px solid #ffc857;' : ''}"
+                     onclick="selectNode('${node.id}')">
+                    <span class="node-icon">${getNodeIcon(node.type)}</span>
+                    <span>${node.name}</span>
+                    <button class="node-delete" onclick="event.stopPropagation(); deleteNode('${node.id}')">✕</button>
+                </div>
+            `;
+            
+            if (node.children && node.children.length > 0) {
+                html += '<div class="tree-children">';
+                node.children.forEach(child => {
+                    html += renderTreeNode(child, depth + 1);
+                });
+                html += '</div>';
+            }
+            
+            return html;
+        }
+
+        function getNodeIcon(type) {
+            switch(type) {
+                case 'selector': return '❓';
+                case 'sequence': return '➡️';
+                case 'condition': return '❔';
+                case 'action': return '▶️';
+                default: return '•';
+            }
+        }
+
+        function renderTree() {
+            const container = document.getElementById('treeContainer');
+            const tree = villagers[selectedVillager].behaviorTree;
+            
+            if (!tree) {
+                container.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">No tree defined. Add nodes from the palette below.</p>';
+                return;
+            }
+            
+            container.innerHTML = renderTreeNode(tree);
+        }
+
+        function selectNode(nodeId) {
+            selectedNodeId = nodeId;
+            renderTree();
+        }
+
+        function findNodeById(node, id) {
+            if (!node) return null;
+            if (node.id === id) return node;
+            if (node.children) {
+                for (let child of node.children) {
+                    const found = findNodeById(child, id);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+
+        function findParentNode(root, id, parent = null) {
+            if (!root) return null;
+            if (root.id === id) return parent;
+            if (root.children) {
+                for (let child of root.children) {
+                    const found = findParentNode(child, id, root);
+                    if (found !== null) return found;
+                }
+            }
+            return null;
+        }
+
+        function deleteNode(nodeId) {
+            const tree = villagers[selectedVillager].behaviorTree;
+            
+            if (tree.id === nodeId) {
+                villagers[selectedVillager].behaviorTree = null;
+                selectedNodeId = null;
+                renderTree();
+                return;
+            }
+            
+            const parent = findParentNode(tree, nodeId);
+            if (parent && parent.children) {
+                parent.children = parent.children.filter(c => c.id !== nodeId);
+                if (selectedNodeId === nodeId) selectedNodeId = null;
+                renderTree();
+            }
+        }
+
+        function addNodeToTree(type, subtype) {
+            const newNode = createNode(type, subtype);
+            const tree = villagers[selectedVillager].behaviorTree;
+            
+            if (!tree) {
+                // Create root node
+                if (type === 'selector' || type === 'sequence') {
+                    villagers[selectedVillager].behaviorTree = newNode;
+                } else {
+                    // Wrap in selector if first node is not a control node
+                    villagers[selectedVillager].behaviorTree = new SelectorNode([newNode]);
+                }
+            } else if (selectedNodeId) {
+                // Add to selected node
+                const selected = findNodeById(tree, selectedNodeId);
+                if (selected && (selected.type === 'selector' || selected.type === 'sequence')) {
+                    selected.children.push(newNode);
+                } else {
+                    // Add to parent's children
+                    const parent = findParentNode(tree, selectedNodeId);
+                    if (parent && parent.children) {
+                        const idx = parent.children.findIndex(c => c.id === selectedNodeId);
+                        parent.children.splice(idx + 1, 0, newNode);
+                    }
+                }
+            } else {
+                // Add to root
+                if (tree.children) {
+                    tree.children.push(newNode);
+                }
+            }
+            
+            selectedNodeId = newNode.id;
+            renderTree();
+        }
+
+        // ==================== RENDERING ====================
+        function drawTile(x, y, type) {
+            const scale = Math.min(
+                canvas.width / (world.width * CONFIG.TILE_SIZE),
+                canvas.height / (world.height * CONFIG.TILE_SIZE)
+            );
+            const offsetX = (canvas.width - world.width * CONFIG.TILE_SIZE * scale) / 2;
+            const offsetY = (canvas.height - world.height * CONFIG.TILE_SIZE * scale) / 2;
+            
+            const px = offsetX + x * CONFIG.TILE_SIZE * scale;
+            const py = offsetY + y * CONFIG.TILE_SIZE * scale;
+            const size = CONFIG.TILE_SIZE * scale;
+            
+            // Base colors
+            const colors = {
+                [TERRAIN_TYPES.GRASS]: '#3d5c3d',
+                [TERRAIN_TYPES.DIRT]: '#8b7355',
+                [TERRAIN_TYPES.WATER]: '#4a6fa5',
+                [TERRAIN_TYPES.FIELD]: '#5c4033',
+                [TERRAIN_TYPES.PATH]: '#8b8b6e',
+                [TERRAIN_TYPES.FLOOR]: '#a08060'
+            };
+            
+            ctx.fillStyle = colors[type] || colors[TERRAIN_TYPES.GRASS];
+            ctx.fillRect(px, py, size + 1, size + 1);
+            
+            // Add texture
+            ctx.fillStyle = 'rgba(0,0,0,0.1)';
+            for (let i = 0; i < 3; i++) {
+                const tx = px + Math.random() * size;
+                const ty = py + Math.random() * size;
+                ctx.fillRect(tx, ty, 2, 2);
+            }
+        }
+
+        function drawBuilding(building) {
+            const scale = Math.min(
+                canvas.width / (world.width * CONFIG.TILE_SIZE),
+                canvas.height / (world.height * CONFIG.TILE_SIZE)
+            );
+            const offsetX = (canvas.width - world.width * CONFIG.TILE_SIZE * scale) / 2;
+            const offsetY = (canvas.height - world.height * CONFIG.TILE_SIZE * scale) / 2;
+            
+            const px = offsetX + building.x * CONFIG.TILE_SIZE * scale;
+            const py = offsetY + building.y * CONFIG.TILE_SIZE * scale;
+            const w = building.w * CONFIG.TILE_SIZE * scale;
+            const h = building.h * CONFIG.TILE_SIZE * scale;
+            
+            // Building colors
+            const buildingColors = {
+                house: { wall: '#8b6914', roof: '#6b4423', door: '#4a3520' },
+                storage: { wall: '#696969', roof: '#4a4a4a', door: '#3a3a3a' },
+                well: { wall: '#5a5a5a', roof: '#3a3a3a', door: '#2a2a2a' }
+            };
+            
+            const colors = buildingColors[building.type] || buildingColors.house;
+            
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(px + 4, py + 4, w, h);
+            
+            // Walls
+            ctx.fillStyle = colors.wall;
+            ctx.fillRect(px, py, w, h);
+            
+            // Roof
+            ctx.fillStyle = colors.roof;
+            ctx.fillRect(px, py, w, h * 0.3);
+            
+            // Door
+            ctx.fillStyle = colors.door;
+            ctx.fillRect(px + w * 0.4, py + h * 0.5, w * 0.2, h * 0.5);
+            
+            // Windows
+            if (building.type === 'house') {
+                ctx.fillStyle = '#ffd700';
+                const isNight = gameState.time >= CONFIG.NIGHT_START || gameState.time < CONFIG.NIGHT_END;
+                ctx.fillStyle = isNight ? '#ffd700' : '#87ceeb';
+                ctx.fillRect(px + w * 0.1, py + h * 0.4, w * 0.15, h * 0.2);
+                ctx.fillRect(px + w * 0.75, py + h * 0.4, w * 0.15, h * 0.2);
+            }
+            
+            // Label
+            ctx.fillStyle = '#fff';
+            ctx.font = `${10 * scale}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText(building.name, px + w/2, py - 5);
+        }
+
+        function drawField(field) {
+            const scale = Math.min(
+                canvas.width / (world.width * CONFIG.TILE_SIZE),
+                canvas.height / (world.height * CONFIG.TILE_SIZE)
+            );
+            const offsetX = (canvas.width - world.width * CONFIG.TILE_SIZE * scale) / 2;
+            const offsetY = (canvas.height - world.height * CONFIG.TILE_SIZE * scale) / 2;
+            
+            const px = offsetX + field.x * CONFIG.TILE_SIZE * scale;
+            const py = offsetY + field.y * CONFIG.TILE_SIZE * scale;
+            const size = CONFIG.TILE_SIZE * scale;
+            
+            // Crop visualization
+            if (field.state === 'growing') {
+                const progress = 1 - (field.growthTimer / CONFIG.CROP_GROW_TIME);
+                const height = size * 0.2 + size * 0.5 * progress;
+                ctx.fillStyle = '#228b22';
+                ctx.fillRect(px + size * 0.3, py + size - height, size * 0.4, height);
+                
+                // Growth indicator
+                ctx.fillStyle = '#90EE90';
+                ctx.fillRect(px + size * 0.35, py + size - height, size * 0.3, 3);
+            } else if (field.state === 'ready') {
+                ctx.fillStyle = '#daa520';
+                ctx.fillRect(px + size * 0.2, py + size * 0.3, size * 0.6, size * 0.7);
+                // Wheat tops
+                ctx.fillStyle = '#f4a460';
+                ctx.beginPath();
+                ctx.arc(px + size * 0.35, py + size * 0.3, size * 0.15, 0, Math.PI * 2);
+                ctx.arc(px + size * 0.5, py + size * 0.25, size * 0.15, 0, Math.PI * 2);
+                ctx.arc(px + size * 0.65, py + size * 0.3, size * 0.15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawVillager(villager) {
+            const scale = Math.min(
+                canvas.width / (world.width * CONFIG.TILE_SIZE),
+                canvas.height / (world.height * CONFIG.TILE_SIZE)
+            );
+            const offsetX = (canvas.width - world.width * CONFIG.TILE_SIZE * scale) / 2;
+            const offsetY = (canvas.height - world.height * CONFIG.TILE_SIZE * scale) / 2;
+            
+            const px = offsetX + villager.x * CONFIG.TILE_SIZE * scale;
+            const py = offsetY + villager.y * CONFIG.TILE_SIZE * scale;
+            const size = CONFIG.TILE_SIZE * scale;
+            
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            ctx.ellipse(px + size/2, py + size * 0.9, size * 0.3, size * 0.1, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Body
+            ctx.fillStyle = villager.color;
+            ctx.beginPath();
+            ctx.arc(px + size/2, py + size * 0.5, size * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Head
+            ctx.fillStyle = '#ffd5b5';
+            ctx.beginPath();
+            ctx.arc(px + size/2, py + size * 0.25, size * 0.25, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // State indicator
+            let stateEmoji = '';
+            switch(villager.state) {
+                case 'sleeping': stateEmoji = '💤'; break;
+                case 'planting': stateEmoji = '🌱'; break;
+                case 'harvesting': stateEmoji = '🌾'; break;
+                case 'storing': stateEmoji = '📦'; break;
+                case 'walking': stateEmoji = '🚶'; break;
+                case 'watering': stateEmoji = '💧'; break;
+                case 'resting': stateEmoji = '☕'; break;
+            }
+            
+            if (stateEmoji) {
+                ctx.font = `${14 * scale}px Arial`;
+                ctx.fillText(stateEmoji, px + size/2 - 7, py - 5);
+            }
+            
+            // Name
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${10 * scale}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText(villager.name, px + size/2, py + size + 12);
+            
+            // Inventory indicator
+            if (villager.inventory > 0) {
+                ctx.fillStyle = '#ffc857';
+                ctx.font = `${12 * scale}px Arial`;
+                ctx.fillText(`🎒${villager.inventory}`, px + size + 5, py + size/2);
+            }
+        }
+
+        function drawDayNightOverlay() {
+            const isNight = gameState.time >= CONFIG.NIGHT_START || gameState.time < CONFIG.NIGHT_END;
+            
+            if (isNight) {
+                let alpha = 0.4;
+                if (gameState.time >= CONFIG.NIGHT_START) {
+                    alpha = 0.4 * Math.min(1, (gameState.time - CONFIG.NIGHT_START) / 60);
+                } else if (gameState.time < CONFIG.NIGHT_END) {
+                    alpha = 0.4 * (1 - gameState.time / CONFIG.NIGHT_END);
+                }
+                
+                ctx.fillStyle = `rgba(20, 20, 50, ${alpha})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function render() {
+            // Clear
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw terrain
+            for (let y = 0; y < world.height; y++) {
+                for (let x = 0; x < world.width; x++) {
+                    drawTile(x, y, world.terrain[y][x]);
+                }
+            }
+            
+            // Draw fields
+            world.fields.forEach(drawField);
+            
+            // Draw buildings
+            world.buildings.forEach(drawBuilding);
+            
+            // Draw villagers
+            villagers.forEach(drawVillager);
+            
+            // Day/night overlay
+            drawDayNightOverlay();
+        }
+
+        // ==================== GAME LOOP ====================
+        let lastTick = 0;
+
+        function update(timestamp) {
+            if (!gameState.running || gameState.speed === 0) {
+                requestAnimationFrame(update);
+                return;
+            }
+            
+            const tickInterval = CONFIG.TICK_RATE / gameState.speed;
+            
+            if (timestamp - lastTick >= tickInterval) {
+                lastTick = timestamp;
+                
+                // Update time
+                gameState.time++;
+                if (gameState.time >= CONFIG.DAY_LENGTH) {
+                    gameState.time = 0;
+                    gameState.day++;
+                }
+                
+                // Update crops
+                world.fields.forEach(field => {
+                    if (field.state === 'growing') {
+                        field.growthTimer--;
+                        if (field.growthTimer <= 0) {
+                            field.state = 'ready';
+                        }
+                    }
+                });
+                
+                // Update villagers
+                villagers.forEach(villager => {
+                    if (villager.behaviorTree) {
+                        villager.behaviorTree.tick(villager);
+                    }
+                    
+                    // Natural energy drain
+                    if (villager.state !== 'sleeping' && villager.state !== 'resting') {
+                        villager.energy = Math.max(0, villager.energy - CONFIG.ENERGY_DRAIN * 0.1);
+                    }
+                });
+                
+                // Update UI
+                updateTimeDisplay();
+                updateStatusPanel();
+                renderTree();
+            }
+            
+            render();
+            requestAnimationFrame(update);
+        }
+
+        // ==================== UI UPDATES ====================
+        function updateTimeDisplay() {
+            const hours = Math.floor(gameState.time / 60);
+            const minutes = gameState.time % 60;
+            const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            
+            document.querySelector('.time-display .day').textContent = `Day ${gameState.day}`;
+            document.querySelector('.time-display .time').textContent = timeStr;
+        }
+
+        function updateStatusPanel() {
+            // Villager statuses
+            let statusHtml = '';
+            villagers.forEach(v => {
+                statusHtml += `
+                    <div class="villager-status">
+                        <h4>${v.emoji} ${v.name}</h4>
+                        <div class="status-row">
+                            <span>State:</span>
+                            <span>${v.state || 'idle'}</span>
+                        </div>
+                        <div class="status-row">
+                            <span>Energy:</span>
+                            <span>${Math.round(v.energy)}%</span>
+                        </div>
+                        <div class="status-bar">
+                            <div class="status-bar-fill energy" style="width: ${v.energy}%"></div>
+                        </div>
+                        <div class="inventory-display">
+                            ${v.inventory > 0 ? `<span class="inventory-item">🌾 ×${v.inventory}</span>` : '<span class="inventory-item">Empty</span>'}
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('villagerStatuses').innerHTML = statusHtml;
+            
+            // World stats
+            document.getElementById('statStorage').textContent = gameState.storedCrops;
+            document.getElementById('statPlanted').textContent = world.fields.filter(f => f.state !== 'empty').length;
+            document.getElementById('statHarvested').textContent = gameState.totalHarvested;
+            document.getElementById('statDays').textContent = gameState.day;
+        }
+
+        // ==================== EVENT HANDLERS ====================
+        function toggleSimulation() {
+            gameState.running = !gameState.running;
+            const btn = document.getElementById('startBtn');
+            btn.textContent = gameState.running ? '⏹ Stop' : '▶ Start';
+            btn.classList.toggle('stop', gameState.running);
+        }
+
+        function resetSimulation() {
+            gameState.running = false;
+            gameState.time = 6 * 60;
+            gameState.day = 1;
+            gameState.totalHarvested = 0;
+            gameState.storedCrops = 0;
+            
+            // Reset villagers
+            villagers[0].x = 10; villagers[0].y = 8;
+            villagers[1].x = 12; villagers[1].y = 8;
+            villagers[2].x = 11; villagers[2].y = 9;
+            
+            villagers.forEach(v => {
+                v.energy = 100;
+                v.inventory = 0;
+                v.state = 'idle';
+                if (v.behaviorTree) v.behaviorTree.reset();
+            });
+            
+            // Reset fields
+            world.fields.forEach(f => {
+                f.state = 'empty';
+                f.growthTimer = 0;
+            });
+            
+            document.getElementById('startBtn').textContent = '▶ Start';
+            document.getElementById('startBtn').classList.remove('stop');
+            
+            updateTimeDisplay();
+            updateStatusPanel();
+            render();
+        }
+
+        // Tab switching
+        document.querySelectorAll('.panel-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.panel-section').forEach(s => s.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab + 'Panel').classList.add('active');
+            });
+        });
+
+        // Speed controls
+        document.querySelectorAll('.speed-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                gameState.speed = parseInt(btn.dataset.speed);
+            });
+        });
+
+        // Villager selection
+        document.querySelectorAll('.villager-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.villager-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedVillager = parseInt(btn.dataset.villager);
+                selectedNodeId = null;
+                renderTree();
+            });
+        });
+
+        // Node palette
+        document.querySelectorAll('.palette-node').forEach(node => {
+            node.addEventListener('click', () => {
+                addNodeToTree(node.dataset.type, node.dataset.subtype);
+            });
+        });
+
+        // ==================== INITIALIZATION ====================
+        function init() {
+            generateWorld();
+            
+            // Give each villager a default tree
+            villagers.forEach(v => {
+                v.behaviorTree = createDefaultTree();
+            });
+            
+            renderTree();
+            updateTimeDisplay();
+            updateStatusPanel();
+            render();
+            requestAnimationFrame(update);
+        }
+
+        init();
+    </script>
+</body>
+</html>
