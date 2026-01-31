@@ -360,6 +360,30 @@ function canMoveTo(fromX, fromY, toX, toY) {
     return true;
 }
 
+// Get the position just OUTSIDE a door (for approaching straight-on)
+function getOutsideDoorPosition(building) {
+    const loc = building.loc;
+    const doorX = loc.doorX !== undefined ? loc.doorX : loc.gateX;
+    const doorY = loc.doorY !== undefined ? loc.doorY : loc.gateY;
+
+    // Determine which edge the door is on and return position just outside
+    if (doorY === loc.y) {
+        // Door on top edge - outside is above
+        return { x: doorX + 0.5, y: doorY - 0.5 };
+    } else if (doorY === loc.y + loc.h - 1) {
+        // Door on bottom edge - outside is below
+        return { x: doorX + 0.5, y: doorY + 1.5 };
+    } else if (doorX === loc.x) {
+        // Door on left edge - outside is to the left
+        return { x: doorX - 0.5, y: doorY + 0.5 };
+    } else if (doorX === loc.x + loc.w - 1) {
+        // Door on right edge - outside is to the right
+        return { x: doorX + 1.5, y: doorY + 0.5 };
+    }
+    // Default: assume bottom door - outside is below
+    return { x: doorX + 0.5, y: doorY + 1.5 };
+}
+
 // Get the "just inside" position from a door (one step into the building)
 function getInsideDoorPosition(building) {
     const loc = building.loc;
@@ -395,22 +419,38 @@ function createGoToAction(targetGetter) {
             return NodeStatus.FAILURE;
         }
 
-        // Determine actual target - if target is in a building and we're outside, go to door first
+        // Determine actual target - if target is in a building and we're outside, use waypoints
         let target = finalTarget;
         const building = findBuildingForTarget(finalTarget);
         if (building && !isInsideBuilding(villager, building.loc)) {
-            const doorDx = building.door.x - villager.x;
-            const doorDy = building.door.y - villager.y;
-            const doorDist = Math.sqrt(doorDx * doorDx + doorDy * doorDy);
+            // Get key positions
+            const outsidePos = getOutsideDoorPosition(building);
+            const doorPos = building.door;
+            const insidePos = getInsideDoorPosition(building);
 
-            if (doorDist >= 0.5) {
-                // Not at door yet - go to door first
-                target = building.door;
-            } else {
-                // At the door - need to step inside first before going to final target
-                // This prevents trying to move diagonally through walls
-                target = getInsideDoorPosition(building);
+            // Calculate distances to each waypoint
+            const distToOutside = Math.sqrt(
+                Math.pow(outsidePos.x - villager.x, 2) + Math.pow(outsidePos.y - villager.y, 2)
+            );
+            const distToDoor = Math.sqrt(
+                Math.pow(doorPos.x - villager.x, 2) + Math.pow(doorPos.y - villager.y, 2)
+            );
+            const distToInside = Math.sqrt(
+                Math.pow(insidePos.x - villager.x, 2) + Math.pow(insidePos.y - villager.y, 2)
+            );
+
+            // Waypoint sequence: outside -> door -> inside -> final target
+            if (distToOutside >= 0.4 && distToDoor >= 0.8) {
+                // Far from door - go to position just outside the door first
+                target = outsidePos;
+            } else if (distToDoor >= 0.4) {
+                // Near outside position - go to door center
+                target = doorPos;
+            } else if (distToInside >= 0.3) {
+                // At door - step inside
+                target = insidePos;
             }
+            // else: close to inside position, will proceed to final target
         }
 
         const dx = target.x - villager.x;
