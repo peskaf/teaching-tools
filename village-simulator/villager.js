@@ -284,8 +284,16 @@ function createGoToAction(targetGetter) {
         let target = finalTarget;
         const building = findBuildingForTarget(finalTarget);
         if (building && !isInsideBuilding(villager, building.loc)) {
-            // Target is inside a building, but we're outside - go to door first
-            target = building.door;
+            // Check if villager is already at the door (close enough to pass through)
+            const doorDx = building.door.x - villager.x;
+            const doorDy = building.door.y - villager.y;
+            const doorDist = Math.sqrt(doorDx * doorDx + doorDy * doorDy);
+
+            if (doorDist >= 0.5) {
+                // Target is inside a building, but we're outside and not at door - go to door first
+                target = building.door;
+            }
+            // Otherwise, villager is at/near door, proceed directly to final target
         }
 
         const dx = target.x - villager.x;
