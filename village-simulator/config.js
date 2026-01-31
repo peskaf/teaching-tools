@@ -72,10 +72,11 @@ export const LOCATIONS = {
     // House with fireplace, stove, and knitting area
     // Outer dimensions include walls. Interior is (w-2) x (h-2)
     // World is 24 wide x 18 tall (tiles 0-23 x 0-17)
-    house: { x: 3, y: 2, w: 7, h: 5, doorX: 6, doorY: 6 }, // Door at bottom center
-    storage: { x: 14, y: 2, w: 4, h: 4, doorX: 16, doorY: 5 }, // Door at bottom center
+    // IMPORTANT: doorX/doorY must be on an edge tile, and ideally centered
+    house: { x: 3, y: 2, w: 7, h: 5, doorX: 6, doorY: 6 }, // Bottom edge, x=6 is center-ish (range 3-9)
+    storage: { x: 14, y: 2, w: 4, h: 4, doorX: 15, doorY: 5 }, // Bottom edge, x=15 is left-center (range 14-17)
     well: { x: 11, y: 7, w: 2, h: 2 }, // No walls
-    mill: { x: 0, y: 4, w: 4, h: 4, doorX: 2, doorY: 7 }, // Door at bottom center
+    mill: { x: 0, y: 4, w: 4, h: 4, doorX: 1, doorY: 7 }, // Bottom edge, x=1 is left-center (range 0-3)
     // Fields
     field1: { x: 5, y: 11, w: 5, h: 4 },
     field2: { x: 11, y: 11, w: 5, h: 4 },
