@@ -2,7 +2,7 @@ import { CONFIG } from './config.js';
 import { generateWorld, updateCrops, resetFields } from './world.js';
 import { villagers, setGameStateRef, updateVillagers, resetVillagers, createDefaultTree } from './villager.js';
 import { initRenderer, setRendererGameState, render } from './renderer.js';
-import { initUI, updateTimeDisplay, updateStatusPanel, renderTree } from './ui.js';
+import { initUI, setUIGameState, setUIGameControls, updateTimeDisplay, updateStatusPanel, renderTree } from './ui.js';
 
 // Game state
 export const gameState = {
@@ -16,11 +16,54 @@ export const gameState = {
 
 let lastTick = 0;
 
+// Toggle simulation running state
+export function toggleSimulation() {
+    gameState.running = !gameState.running;
+    const btn = document.getElementById('startBtn');
+    btn.textContent = gameState.running ? '⏹ Stop' : '▶ Start';
+    btn.classList.toggle('stop', gameState.running);
+}
+
+// Reset simulation to initial state
+export function resetSimulation() {
+    gameState.running = false;
+    gameState.time = 6 * 60;
+    gameState.day = 1;
+    gameState.totalHarvested = 0;
+    gameState.storedCrops = 0;
+
+    // Reset villagers
+    resetVillagers();
+
+    // Reset fields
+    resetFields();
+
+    document.getElementById('startBtn').textContent = '▶ Start';
+    document.getElementById('startBtn').classList.remove('stop');
+
+    updateTimeDisplay();
+    updateStatusPanel();
+    render();
+}
+
+// Set simulation speed
+export function setSpeed(speed) {
+    gameState.speed = speed;
+}
+
 // Initialize the game
 export function initGame() {
     // Set game state reference for other modules
     setGameStateRef(gameState);
     setRendererGameState(gameState);
+    setUIGameState(gameState);
+
+    // Pass control functions to UI
+    setUIGameControls({
+        toggle: toggleSimulation,
+        reset: resetSimulation,
+        setSpeed: setSpeed
+    });
 
     // Initialize world
     generateWorld();
@@ -80,39 +123,4 @@ function update(timestamp) {
 
     render();
     requestAnimationFrame(update);
-}
-
-// Toggle simulation running state
-export function toggleSimulation() {
-    gameState.running = !gameState.running;
-    const btn = document.getElementById('startBtn');
-    btn.textContent = gameState.running ? '⏹ Stop' : '▶ Start';
-    btn.classList.toggle('stop', gameState.running);
-}
-
-// Reset simulation to initial state
-export function resetSimulation() {
-    gameState.running = false;
-    gameState.time = 6 * 60;
-    gameState.day = 1;
-    gameState.totalHarvested = 0;
-    gameState.storedCrops = 0;
-
-    // Reset villagers
-    resetVillagers();
-
-    // Reset fields
-    resetFields();
-
-    document.getElementById('startBtn').textContent = '▶ Start';
-    document.getElementById('startBtn').classList.remove('stop');
-
-    updateTimeDisplay();
-    updateStatusPanel();
-    render();
-}
-
-// Set simulation speed
-export function setSpeed(speed) {
-    gameState.speed = speed;
 }
