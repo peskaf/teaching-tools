@@ -43,18 +43,7 @@
                 <!-- Trees Panel -->
                 <div class="panel-section active" id="treesPanel">
                     <div class="villager-select">
-                        <button class="villager-btn active" data-villager="0">
-                            <span class="emoji">👨‍🌾</span>
-                            Karel
-                        </button>
-                        <button class="villager-btn" data-villager="1">
-                            <span class="emoji">👩‍🌾</span>
-                            Marie
-                        </button>
-                        <button class="villager-btn" data-villager="2">
-                            <span class="emoji">👦</span>
-                            Tomáš
-                        </button>
+                        <!-- Villager buttons generated dynamically by ui.js -->
                     </div>
 
                     <div class="tree-editor">
@@ -77,43 +66,147 @@
                         </div>
 
                         <div class="palette-category">
-                            <h4>Conditions</h4>
+                            <h4>Conditions - Basic</h4>
                             <div class="palette-nodes">
                                 <div class="palette-node condition" data-type="condition" data-subtype="isNight">🌙 Is Night?</div>
                                 <div class="palette-node condition" data-type="condition" data-subtype="isDay">☀️ Is Day?</div>
                                 <div class="palette-node condition" data-type="condition" data-subtype="isTired">😴 Is Tired?</div>
                                 <div class="palette-node condition" data-type="condition" data-subtype="isHungry">🍽️ Is Hungry?</div>
-                                <div class="palette-node condition" data-type="condition" data-subtype="hasItems">🎒 Has Items?</div>
-                                <div class="palette-node condition" data-type="condition" data-subtype="hasWheat">🌾 Has Wheat?</div>
-                                <div class="palette-node condition" data-type="condition" data-subtype="hasFlour">🥛 Has Flour?</div>
-                                <div class="palette-node condition" data-type="condition" data-subtype="cropsReady">🌾 Crops Ready?</div>
-                                <div class="palette-node condition" data-type="condition" data-subtype="fieldEmpty">🟫 Field Empty?</div>
-                                <div class="palette-node condition" data-type="condition" data-subtype="needsWater">💧 Needs Water?</div>
-                                <div class="palette-node condition" data-type="condition" data-subtype="storageHasWheat">📦🌾 Storage Has Wheat?</div>
-                                <div class="palette-node condition" data-type="condition" data-subtype="storageHasFlour">📦🥛 Storage Has Flour?</div>
-                                <div class="palette-node condition" data-type="condition" data-subtype="storageHasBread">📦🍞 Storage Has Bread?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="isCold">🥶 Is Cold?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="isWinter">❄️ Is Winter?</div>
                             </div>
                         </div>
 
                         <div class="palette-category">
-                            <h4>Actions</h4>
+                            <h4>Conditions - Inventory</h4>
+                            <div class="palette-nodes">
+                                <div class="palette-node condition" data-type="condition" data-subtype="hasItems">🎒 Has Items?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="hasWheat">🌾 Has Wheat?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="hasFlour">🥛 Has Flour?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="hasWood">🪵 Has Wood?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="hasWool">🧶 Has Wool?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="hasFish">🐟 Has Fish?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="wearingSweater">🧥 Wearing Sweater?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="notWearingSweater">🧥 Not Wearing Sweater?</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Conditions - World</h4>
+                            <div class="palette-nodes">
+                                <div class="palette-node condition" data-type="condition" data-subtype="cropsReady">🌾 Crops Ready?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="fieldEmpty">🟫 Field Empty?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="needsWater">💧 Needs Water?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="treesAvailable">🌲 Trees Available?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="sheepHasWool">🐑 Sheep Has Wool?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="fireNotLit">🔥 Fire Not Lit?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="fireLit">🔥 Fire Lit?</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Conditions - Storage</h4>
+                            <div class="palette-nodes">
+                                <div class="palette-node condition" data-type="condition" data-subtype="storageHasWheat">📦🌾 Has Wheat?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="storageHasFlour">📦🥛 Has Flour?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="storageHasBread">📦🍞 Has Bread?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="storageHasWood">📦🪵 Has Wood?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="storageHasWool">📦🧶 Has Wool?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="storageHasSweaters">📦🧥 Has Sweaters?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="storageHasFish">📦🐟 Has Fish?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="storageHasCookedFish">📦🍳 Has Cooked Fish?</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Actions - Movement</h4>
                             <div class="palette-nodes">
                                 <div class="palette-node action" data-type="action" data-subtype="goToField">🚶 Go to Field</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToFieldForWatering">🚶 Go to Field (Water)</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToHouse">🏠 Go to House</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToFireplace">🔥 Go to Fireplace</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToStorage">📦 Go to Storage</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToWell">💧 Go to Well</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToMill">🏭 Go to Mill</div>
-                                <div class="palette-node action" data-type="action" data-subtype="goToKitchen">🍳 Go to Kitchen</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToForest">🌲 Go to Forest</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToPasture">🐑 Go to Pasture</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToPond">🎣 Go to Pond</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Actions - Farming</h4>
+                            <div class="palette-nodes">
                                 <div class="palette-node action" data-type="action" data-subtype="plantCrops">🌱 Plant Crops</div>
                                 <div class="palette-node action" data-type="action" data-subtype="harvestCrops">🌾 Harvest</div>
                                 <div class="palette-node action" data-type="action" data-subtype="waterCrops">💧 Water Crops</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Actions - Storage</h4>
+                            <div class="palette-nodes">
                                 <div class="palette-node action" data-type="action" data-subtype="storeItems">📥 Store Items</div>
                                 <div class="palette-node action" data-type="action" data-subtype="pickupWheat">📤 Pickup Wheat</div>
                                 <div class="palette-node action" data-type="action" data-subtype="pickupFlour">📤 Pickup Flour</div>
+                                <div class="palette-node action" data-type="action" data-subtype="pickupWood">📤 Pickup Wood</div>
+                                <div class="palette-node action" data-type="action" data-subtype="pickupWool">📤 Pickup Wool</div>
+                                <div class="palette-node action" data-type="action" data-subtype="pickupFish">📤 Pickup Fish</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Actions - Processing</h4>
+                            <div class="palette-nodes">
                                 <div class="palette-node action" data-type="action" data-subtype="grindWheat">⚙️ Grind Wheat</div>
                                 <div class="palette-node action" data-type="action" data-subtype="bakeBread">🍞 Bake Bread</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Actions - Woodcutting</h4>
+                            <div class="palette-nodes">
+                                <div class="palette-node action" data-type="action" data-subtype="chopTree">🪓 Chop Tree</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Actions - Sheep & Wool</h4>
+                            <div class="palette-nodes">
+                                <div class="palette-node action" data-type="action" data-subtype="shearSheep">✂️ Shear Sheep</div>
+                                <div class="palette-node action" data-type="action" data-subtype="knitSweater">🧶 Knit Sweater</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Actions - Fishing</h4>
+                            <div class="palette-nodes">
+                                <div class="palette-node action" data-type="action" data-subtype="catchFish">🎣 Catch Fish</div>
+                                <div class="palette-node action" data-type="action" data-subtype="cookFish">🍳 Cook Fish</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Actions - Eating</h4>
+                            <div class="palette-nodes">
                                 <div class="palette-node action" data-type="action" data-subtype="eatBread">🍞 Eat Bread</div>
+                                <div class="palette-node action" data-type="action" data-subtype="eatCookedFish">🐟 Eat Fish</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Actions - Warmth</h4>
+                            <div class="palette-nodes">
+                                <div class="palette-node action" data-type="action" data-subtype="putOnSweater">🧥 Put On Sweater</div>
+                                <div class="palette-node action" data-type="action" data-subtype="takeOffSweater">🧥 Take Off Sweater</div>
+                                <div class="palette-node action" data-type="action" data-subtype="addWoodToFire">🔥 Add Wood to Fire</div>
+                                <div class="palette-node action" data-type="action" data-subtype="warmByFire">🔥 Warm By Fire</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Actions - Rest</h4>
+                            <div class="palette-nodes">
                                 <div class="palette-node action" data-type="action" data-subtype="sleep">😴 Sleep</div>
                                 <div class="palette-node action" data-type="action" data-subtype="rest">☕ Rest</div>
                             </div>
@@ -128,6 +221,36 @@
 
                 <!-- Status Panel -->
                 <div class="panel-section" id="statusPanel">
+                    <div class="objectives-section">
+                        <h3>🎯 Objectives</h3>
+                        <div id="objectives">
+                            <div class="objective" data-objective="survive7">
+                                <span class="objective-check">☐</span>
+                                <span class="objective-text">Survive 7 days (1 season)</span>
+                            </div>
+                            <div class="objective" data-objective="bread5">
+                                <span class="objective-check">☐</span>
+                                <span class="objective-text">Bake 5 loaves of bread</span>
+                            </div>
+                            <div class="objective" data-objective="sweater3">
+                                <span class="objective-check">☐</span>
+                                <span class="objective-text">Knit 3 sweaters</span>
+                            </div>
+                            <div class="objective" data-objective="fish5">
+                                <span class="objective-check">☐</span>
+                                <span class="objective-text">Cook 5 fish</span>
+                            </div>
+                            <div class="objective" data-objective="surviveWinter">
+                                <span class="objective-check">☐</span>
+                                <span class="objective-text">Survive through winter</span>
+                            </div>
+                            <div class="objective" data-objective="allFed">
+                                <span class="objective-check">☐</span>
+                                <span class="objective-text">Keep all villagers fed for a full day</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="status-section">
                         <h3>👥 Villagers</h3>
                         <div id="villagerStatuses"></div>
@@ -149,6 +272,30 @@
                                 <div class="label">🍞 Bread</div>
                             </div>
                             <div class="stat-item">
+                                <div class="value" id="statWood">0</div>
+                                <div class="label">🪵 Wood</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="statWool">0</div>
+                                <div class="label">🧶 Wool</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="statSweaters">0</div>
+                                <div class="label">🧥 Sweaters</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="statFish">0</div>
+                                <div class="label">🐟 Fish</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="statFire">❄️ Out</div>
+                                <div class="label">🔥 Fireplace</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="statSeason">spring</div>
+                                <div class="label">🌸 Season</div>
+                            </div>
+                            <div class="stat-item">
                                 <div class="value" id="statPlanted">0</div>
                                 <div class="label">Fields Planted</div>
                             </div>
@@ -168,7 +315,16 @@
                 <div class="panel-section" id="helpPanel">
                     <div class="instructions">
                         <h3>🎮 How to Play</h3>
-                        <p>Design behavior trees for each villager to automate their daily tasks in the village.</p>
+                        <p>Design behavior trees for each villager to automate their daily tasks. Each villager can have a specialized role!</p>
+
+                        <h3 style="margin-top: 15px;">👥 Villager Roles</h3>
+                        <ul>
+                            <li><strong>👨‍🌾 Farmer</strong> - Plants, waters, harvests crops</li>
+                            <li><strong>👩‍🌾 Miller</strong> - Grinds wheat, bakes bread</li>
+                            <li><strong>🪓 Lumberjack</strong> - Chops trees for wood</li>
+                            <li><strong>🐑 Shepherd</strong> - Shears sheep, knits sweaters</li>
+                            <li><strong>🎣 Fisher</strong> - Catches and cooks fish</li>
+                        </ul>
 
                         <h3 style="margin-top: 15px;">🌳 Behavior Trees</h3>
                         <p>Trees are evaluated from top to bottom each tick:</p>
@@ -179,85 +335,51 @@
                             <li><strong>Action</strong> - Makes the villager do something</li>
                         </ul>
 
-                        <h3 style="margin-top: 15px;">💧 Watering System</h3>
-                        <p>Crops need water to grow!</p>
+                        <h3 style="margin-top: 15px;">🌡️ Seasons & Temperature</h3>
+                        <p>The year cycles through 4 seasons (7 days each):</p>
                         <ul>
-                            <li>After planting, crops need to be watered</li>
-                            <li>Crops only grow while watered</li>
-                            <li>Water runs out after ~3 hours, re-water to continue growth</li>
-                            <li>Look for the 💧 icon on dry crops</li>
+                            <li>🌸 <strong>Spring</strong> - Mild temperature</li>
+                            <li>☀️ <strong>Summer</strong> - Warm, crops grow fastest</li>
+                            <li>🍂 <strong>Autumn</strong> - Cooling down</li>
+                            <li>❄️ <strong>Winter</strong> - Crops don't grow! Villagers get cold!</li>
                         </ul>
 
-                        <h3 style="margin-top: 15px;">🍞 Production Cycle</h3>
-                        <p>Full cycle: Wheat → Flour → Bread → Eat</p>
+                        <h3 style="margin-top: 15px;">🥶 Warmth System</h3>
+                        <p>Villagers need to stay warm, especially in winter!</p>
                         <ul>
-                            <li>🌾 <strong>Harvest wheat</strong> from ready crops</li>
-                            <li>📥 <strong>Store wheat</strong> at the storage</li>
-                            <li>📤 <strong>Pickup wheat</strong> from storage</li>
-                            <li>🏭 <strong>Go to mill</strong> and <strong>Grind wheat</strong> into flour</li>
-                            <li>📤 <strong>Pickup flour</strong> from storage</li>
-                            <li>🍳 <strong>Go to kitchen</strong> and <strong>Bake bread</strong></li>
-                            <li>🍞 <strong>Eat bread</strong> when hungry to restore hunger</li>
+                            <li>Warmth drains faster in winter</li>
+                            <li>🧥 <strong>Sweaters</strong> reduce warmth loss</li>
+                            <li>🔥 <strong>Fireplace</strong> restores warmth (needs wood!)</li>
+                            <li>Cold villagers move slower and may freeze!</li>
                         </ul>
 
-                        <h3 style="margin-top: 15px;">🍽️ Hunger System</h3>
-                        <p>Villagers get hungry over time!</p>
+                        <h3 style="margin-top: 15px;">🍞 Food Production</h3>
+                        <p>Two ways to get food:</p>
                         <ul>
-                            <li>Hunger decreases slowly over time</li>
-                            <li>When hunger drops below 40%, villagers become hungry</li>
-                            <li>Eating bread restores 40 hunger points</li>
-                            <li>Very hungry villagers move slower!</li>
+                            <li><strong>Bread:</strong> Plant → Water → Harvest → Mill → Bake</li>
+                            <li><strong>Fish:</strong> Catch → Cook (needs lit fire!)</li>
                         </ul>
 
-                        <h3 style="margin-top: 15px;">📋 Example Tree</h3>
-                        <p>A complete farming routine:</p>
+                        <h3 style="margin-top: 15px;">🪵 Wood & Fire</h3>
                         <ul>
-                            <li>Selector (root)
-                                <ul>
-                                    <li>Sequence: Sleep at night
-                                        <ul>
-                                            <li>Condition: Is Night?</li>
-                                            <li>Action: Go to House</li>
-                                            <li>Action: Sleep</li>
-                                        </ul>
-                                    </li>
-                                    <li>Sequence: Store crops
-                                        <ul>
-                                            <li>Condition: Has Items?</li>
-                                            <li>Action: Go to Storage</li>
-                                            <li>Action: Store Items</li>
-                                        </ul>
-                                    </li>
-                                    <li>Sequence: Harvest
-                                        <ul>
-                                            <li>Condition: Crops Ready?</li>
-                                            <li>Action: Go to Field</li>
-                                            <li>Action: Harvest</li>
-                                        </ul>
-                                    </li>
-                                    <li>Sequence: Water crops
-                                        <ul>
-                                            <li>Condition: Needs Water?</li>
-                                            <li>Action: Go to Well</li>
-                                            <li>Action: Go to Field</li>
-                                            <li>Action: Water Crops</li>
-                                        </ul>
-                                    </li>
-                                    <li>Sequence: Plant
-                                        <ul>
-                                            <li>Condition: Field Empty?</li>
-                                            <li>Action: Go to Field</li>
-                                            <li>Action: Plant Crops</li>
-                                        </ul>
-                                    </li>
-                                </ul>
-                            </li>
+                            <li>Chop trees in the forest for wood</li>
+                            <li>Add wood to fireplace to light it</li>
+                            <li>Fire is needed for cooking fish and baking</li>
+                            <li>Fire consumes wood over time!</li>
+                            <li>Trees regrow after being chopped</li>
+                        </ul>
+
+                        <h3 style="margin-top: 15px;">🧶 Wool & Sweaters</h3>
+                        <ul>
+                            <li>Shear sheep at the pasture for wool</li>
+                            <li>Knit sweaters to stay warm in winter</li>
+                            <li>Sheep regrow wool over time</li>
                         </ul>
 
                         <h3 style="margin-top: 15px;">⏰ Time</h3>
                         <p><code>06:00-20:00</code> = Day</p>
                         <p><code>20:00-06:00</code> = Night</p>
-                        <p>Crops take ~4 hours to grow (when watered). Villagers get tired over time.</p>
+                        <p>1 season = 7 days. Prepare for winter!</p>
                     </div>
                 </div>
             </div>
