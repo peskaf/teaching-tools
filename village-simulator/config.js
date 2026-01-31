@@ -78,8 +78,8 @@ export const LOCATIONS = {
     // Fields (only 2 now, pasture replaces one)
     field1: { x: 5, y: 11, w: 5, h: 4 },
     field2: { x: 12, y: 11, w: 5, h: 4 },
-    // Forest area for trees
-    forest: { x: 19, y: 1, w: 4, h: 5 },
+    // Forest area for trees (moved right to avoid storage overlap)
+    forest: { x: 22, y: 1, w: 4, h: 5 },
     // Sheep pasture with fence (replaces field3)
     pasture: { x: 19, y: 11, w: 4, h: 4, gateX: 20, gateY: 14 },
     // Fishing pond - larger and better positioned
@@ -110,13 +110,15 @@ export function getBedPosition(villagerIndex) {
 }
 
 // Interior positions within house (all inside the walls)
+// House interior: x from house.x+1 to house.x+w-2, y from house.y+1 to house.y+h-2
+// For house at (3,2) with w=7, h=5: interior x:4-8, interior y:3-5
 export const HOUSE_POSITIONS = {
-    // Fireplace on right side, middle row
-    fireplace: { x: LOCATIONS.house.x + LOCATIONS.house.w - 1.5, y: LOCATIONS.house.y + 2.5 },
-    // Stove next to fireplace, bottom row
-    stove: { x: LOCATIONS.house.x + LOCATIONS.house.w - 1.5, y: LOCATIONS.house.y + 3.5 },
-    // Knitting station on left side, bottom row
-    knittingStation: { x: LOCATIONS.house.x + 1.5, y: LOCATIONS.house.y + 3.5 }
+    // Fireplace on right side of interior, middle
+    fireplace: { x: LOCATIONS.house.x + LOCATIONS.house.w - 2.5, y: LOCATIONS.house.y + 1.5 },
+    // Stove in the middle-right area
+    stove: { x: LOCATIONS.house.x + LOCATIONS.house.w - 2.5, y: LOCATIONS.house.y + 2.5 },
+    // Knitting station on left side of interior
+    knittingStation: { x: LOCATIONS.house.x + 1.5, y: LOCATIONS.house.y + 2.5 }
 };
 
 // Villager roles (for educational purposes - students assign different trees to each)

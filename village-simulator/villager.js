@@ -280,6 +280,29 @@ export const CONDITIONS = {
     storageHasCookedFish: (v) => gameStateRef.storedCookedFish > 0
 };
 
+// Helper to check if a move is valid (doesn't cut corners through walls)
+function canMoveTo(fromX, fromY, toX, toY) {
+    // Check destination
+    if (isBlockedByWall(toX, toY)) return false;
+
+    // For diagonal moves, also check the two adjacent tiles to prevent corner cutting
+    const fromTileX = Math.floor(fromX);
+    const fromTileY = Math.floor(fromY);
+    const toTileX = Math.floor(toX);
+    const toTileY = Math.floor(toY);
+
+    // If moving diagonally (both X and Y tile changed)
+    if (fromTileX !== toTileX && fromTileY !== toTileY) {
+        // Check both corner tiles to prevent cutting through diagonal walls
+        if (isBlockedByWall(toTileX + 0.5, fromTileY + 0.5) &&
+            isBlockedByWall(fromTileX + 0.5, toTileY + 0.5)) {
+            return false; // Both corners blocked, can't cut through
+        }
+    }
+
+    return true;
+}
+
 // Create a movement action to a target location with simple tile-based pathfinding
 function createGoToAction(targetGetter) {
     return (villager) => {
@@ -326,46 +349,81 @@ function createGoToAction(targetGetter) {
             speed = 0.04;
         }
 
-        // Calculate next position
-        let nextX = villager.x + (dx / dist) * speed;
-        let nextY = villager.y + (dy / dist) * speed;
+        // Calculate desired next position (direct line to target)
+        const desiredX = villager.x + (dx / dist) * speed;
+        const desiredY = villager.y + (dy / dist) * speed;
 
-        // Check for wall collision - try to navigate around
-        if (isBlockedByWall(nextX, nextY)) {
-            // Try moving only along X axis
-            const testX = villager.x + (dx > 0 ? speed : (dx < 0 ? -speed : 0));
-            if (testX !== villager.x && !isBlockedByWall(testX, villager.y)) {
-                nextX = testX;
-                nextY = villager.y;
+        let nextX = villager.x;
+        let nextY = villager.y;
+        let moved = false;
+
+        // Try direct movement first
+        if (canMoveTo(villager.x, villager.y, desiredX, desiredY)) {
+            nextX = desiredX;
+            nextY = desiredY;
+            moved = true;
+        } else {
+            // Try axis-aligned movements (prioritize the axis with larger delta)
+            const moveX = dx > 0 ? speed : (dx < 0 ? -speed : 0);
+            const moveY = dy > 0 ? speed : (dy < 0 ? -speed : 0);
+
+            // Determine which axis to try first based on distance to target
+            const tryXFirst = Math.abs(dx) > Math.abs(dy);
+
+            if (tryXFirst) {
+                // Try X first, then Y
+                if (moveX !== 0 && canMoveTo(villager.x, villager.y, villager.x + moveX, villager.y)) {
+                    nextX = villager.x + moveX;
+                    moved = true;
+                } else if (moveY !== 0 && canMoveTo(villager.x, villager.y, villager.x, villager.y + moveY)) {
+                    nextY = villager.y + moveY;
+                    moved = true;
+                }
             } else {
-                // Try moving only along Y axis
-                const testY = villager.y + (dy > 0 ? speed : (dy < 0 ? -speed : 0));
-                if (testY !== villager.y && !isBlockedByWall(villager.x, testY)) {
-                    nextX = villager.x;
-                    nextY = testY;
-                } else {
-                    // Completely blocked - try perpendicular direction to get around obstacle
-                    const perpDirs = [
-                        { x: speed, y: 0 },
-                        { x: -speed, y: 0 },
-                        { x: 0, y: speed },
-                        { x: 0, y: -speed }
-                    ];
-                    let moved = false;
-                    for (const dir of perpDirs) {
-                        if (!isBlockedByWall(villager.x + dir.x, villager.y + dir.y)) {
-                            nextX = villager.x + dir.x;
-                            nextY = villager.y + dir.y;
-                            moved = true;
-                            break;
-                        }
-                    }
-                    if (!moved) {
-                        // Completely stuck
-                        return NodeStatus.RUNNING;
+                // Try Y first, then X
+                if (moveY !== 0 && canMoveTo(villager.x, villager.y, villager.x, villager.y + moveY)) {
+                    nextY = villager.y + moveY;
+                    moved = true;
+                } else if (moveX !== 0 && canMoveTo(villager.x, villager.y, villager.x + moveX, villager.y)) {
+                    nextX = villager.x + moveX;
+                    moved = true;
+                }
+            }
+
+            // If still stuck, try perpendicular directions (wall following)
+            if (!moved) {
+                // Calculate perpendicular directions, sorted by which gets us closer to target
+                const perpDirs = [
+                    { x: speed, y: 0 },
+                    { x: -speed, y: 0 },
+                    { x: 0, y: speed },
+                    { x: 0, y: -speed }
+                ];
+
+                // Sort by distance to target after move
+                perpDirs.sort((a, b) => {
+                    const distA = Math.sqrt(Math.pow(target.x - (villager.x + a.x), 2) +
+                                           Math.pow(target.y - (villager.y + a.y), 2));
+                    const distB = Math.sqrt(Math.pow(target.x - (villager.x + b.x), 2) +
+                                           Math.pow(target.y - (villager.y + b.y), 2));
+                    return distA - distB;
+                });
+
+                for (const dir of perpDirs) {
+                    if (canMoveTo(villager.x, villager.y, villager.x + dir.x, villager.y + dir.y)) {
+                        nextX = villager.x + dir.x;
+                        nextY = villager.y + dir.y;
+                        moved = true;
+                        break;
                     }
                 }
             }
+        }
+
+        if (!moved) {
+            // Completely stuck - return RUNNING to try again next tick
+            // (world state might change, or another villager might move)
+            return NodeStatus.RUNNING;
         }
 
         villager.x = nextX;
@@ -414,8 +472,9 @@ export const ACTIONS = {
     goToKnittingStation: createGoToAction(() => HOUSE_POSITIONS.knittingStation),
 
     goToStorage: createGoToAction(() => ({
-        x: LOCATIONS.storage.x + LOCATIONS.storage.w / 2,
-        y: LOCATIONS.storage.y + LOCATIONS.storage.h / 2
+        // Target interior center (1 tile inside walls on all sides)
+        x: LOCATIONS.storage.x + 1 + (LOCATIONS.storage.w - 2) / 2,
+        y: LOCATIONS.storage.y + 1 + (LOCATIONS.storage.h - 2) / 2
     })),
 
     goToWell: createGoToAction(() => ({
@@ -424,8 +483,9 @@ export const ACTIONS = {
     })),
 
     goToMill: createGoToAction(() => ({
-        x: LOCATIONS.mill.x + LOCATIONS.mill.w / 2,
-        y: LOCATIONS.mill.y + LOCATIONS.mill.h / 2
+        // Target interior center (1 tile inside walls on all sides)
+        x: LOCATIONS.mill.x + 1 + (LOCATIONS.mill.w - 2) / 2,
+        y: LOCATIONS.mill.y + 1 + (LOCATIONS.mill.h - 2) / 2
     })),
 
     goToForest: createGoToAction((villager) => {
