@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nim-7: Build Your AI - Behavior Tree</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 16px;
+      color: #e2e8f0;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .header h1 {
+      font-size: 26px;
+      font-weight: bold;
+      color: #22c55e;
+      margin: 0;
+    }
+
+    .header p {
+      color: #94a3b8;
+      font-size: 12px;
+      margin: 4px 0 0 0;
+    }
+
+    .header strong {
+      color: #22c55e;
+    }
+
+    /* Top palette bar */
+    .palette-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .palette-group {
+      background: rgba(15, 23, 42, 0.95);
+      border-radius: 10px;
+      padding: 10px 14px;
+      border: 2px solid #334155;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .palette-group.instructions {
+      border-color: #f59e0b;
+    }
+
+    .palette-label {
+      color: #64748b;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .palette-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 10px;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .palette-btn:hover:not(:disabled) {
+      transform: scale(1.05);
+    }
+
+    .palette-btn:disabled {
+      background: #1e293b !important;
+      color: #475569;
+      cursor: not-allowed;
+    }
+
+    .palette-btn .symbol {
+      font-size: 14px;
+    }
+
+    .btn-selector { background: #8b5cf6; }
+    .btn-sequence { background: #3b82f6; }
+    .btn-condition { background: #f59e0b; }
+    .btn-action { background: #22c55e; }
+
+    .btn-clear {
+      padding: 4px 10px;
+      background: #dc2626;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .instructions-text {
+      color: #94a3b8;
+      font-size: 11px;
+    }
+
+    .instructions-text .highlight {
+      color: #f59e0b;
+      font-weight: bold;
+    }
+
+    /* Tree canvas - resizable */
+    .tree-canvas {
+      background: rgba(15, 23, 42, 0.95);
+      border-radius: 12px;
+      border: 2px solid #334155;
+      margin-bottom: 4px;
+      overflow: hidden;
+    }
+
+    .tree-container {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 180px;
+      overflow: auto;
+      padding: 20px;
+      padding-bottom: 30px;
+    }
+
+    .tree-empty {
+      text-align: center;
+      color: #475569;
+      padding: 50px 20px;
+    }
+
+    .tree-empty .icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .tree-empty .text {
+      font-size: 16px;
+    }
+
+    .tree-empty strong.selector {
+      color: #8b5cf6;
+    }
+
+    .tree-empty strong.sequence {
+      color: #3b82f6;
+    }
+
+    /* Resize handle */
+    .resize-handle {
+      height: 16px;
+      background: #1e293b;
+      cursor: ns-resize;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-top: 1px solid #334155;
+    }
+
+    .resize-handle-bar {
+      width: 50px;
+      height: 4px;
+      background: #475569;
+      border-radius: 2px;
+    }
+
+    .tree-legend {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      padding: 12px;
+      font-size: 11px;
+      color: #64748b;
+      flex-wrap: wrap;
+      border-top: 1px solid #334155;
+      background: #0f172a;
+    }
+
+    .tree-legend .selector { color: #8b5cf6; font-weight: bold; }
+    .tree-legend .sequence { color: #3b82f6; font-weight: bold; }
+    .tree-legend .condition { color: #f59e0b; font-weight: bold; }
+    .tree-legend .action { color: #22c55e; font-weight: bold; }
+
+    /* Tree nodes */
+    .tree-node-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .tree-node {
+      width: 80px;
+      min-height: 54px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: all 0.3s;
+      border: 3px solid transparent;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .tree-node.selectable {
+      cursor: pointer;
+    }
+
+    .tree-node.selected {
+      border-color: #fbbf24;
+    }
+
+    .tree-node.result-success {
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.9);
+    }
+
+    .tree-node.result-failure {
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.9);
+    }
+
+    .tree-node .delete-btn {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ef4444;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    .tree-node .symbol {
+      font-size: 22px;
+      font-weight: bold;
+      color: white;
+    }
+
+    .tree-node .label {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.95);
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .tree-node .param-input {
+      width: 28px;
+      padding: 2px;
+      border-radius: 4px;
+      border: 2px solid rgba(0, 0, 0, 0.3);
+      text-align: center;
+      font-weight: bold;
+      font-size: 12px;
+      background: #1e293b;
+      color: #fbbf24;
+    }
+
+    .tree-node .selected-indicator {
+      position: absolute;
+      bottom: -20px;
+      font-size: 10px;
+      color: #fbbf24;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    .tree-connector-v {
+      width: 2px;
+      height: 24px;
+      background: #64748b;
+    }
+
+    .tree-connector-h {
+      height: 2px;
+      background: #64748b;
+    }
+
+    .tree-children {
+      display: flex;
+      gap: 16px;
+    }
+
+    .tree-child-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Game panel */
+    .game-panel {
+      background: rgba(15, 23, 42, 0.95);
+      border-radius: 12px;
+      padding: 16px;
+      border: 2px solid #334155;
+      margin-top: 12px;
+    }
+
+    .game-panel h3 {
+      color: #fbbf24;
+      margin: 0 0 12px 0;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .game-content {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .items-display {
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 16px 24px;
+      text-align: center;
+      min-width: 180px;
+    }
+
+    .items-display .label {
+      color: #64748b;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .items-display .items {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .items-display .item {
+      width: 24px;
+      height: 24px;
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(251, 191, 36, 0.4);
+    }
+
+    .items-display .count {
+      font-size: 36px;
+      font-weight: bold;
+      color: #fbbf24;
+    }
+
+    .game-controls {
+      min-width: 200px;
+      text-align: center;
+    }
+
+    .start-prompt {
+      color: #94a3b8;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .start-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .btn-start {
+      padding: 12px 20px;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .btn-start.player {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+    }
+
+    .btn-start.ai {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+    }
+
+    .turn-indicator {
+      text-align: center;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-weight: bold;
+      font-size: 15px;
+    }
+
+    .turn-indicator.player-turn {
+      background: #166534;
+    }
+
+    .turn-indicator.ai-turn {
+      background: #1e40af;
+    }
+
+    .turn-indicator.player-wins {
+      background: #166534;
+    }
+
+    .turn-indicator.ai-wins {
+      background: #991b1b;
+    }
+
+    .player-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+      justify-content: center;
+    }
+
+    .btn-take {
+      padding: 14px 28px;
+      font-size: 20px;
+      font-weight: bold;
+      background: #22c55e;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .btn-take:disabled {
+      background: #1e293b;
+      color: #475569;
+      cursor: not-allowed;
+    }
+
+    .btn-reset {
+      padding: 8px 16px;
+      background: #6366f1;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    .game-log {
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 10px;
+      min-width: 180px;
+      max-height: 140px;
+      overflow-y: auto;
+      font-size: 12px;
+    }
+
+    .game-log .title {
+      color: #64748b;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    .game-log .empty {
+      color: #475569;
+    }
+
+    .game-log .entry {
+      border-bottom: 1px solid #1e293b;
+      padding: 3px 0;
+    }
+
+    .game-log .entry.player {
+      color: #22c55e;
+    }
+
+    .game-log .entry.ai {
+      color: #3b82f6;
+    }
+
+    /* Hint */
+    .hint {
+      max-width: 700px;
+      margin: 12px auto 0;
+      padding: 10px 16px;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid #f59e0b;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #fbbf24;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <h1>🌳 Nim-7: Build Your AI</h1>
+    <p>Create a behavior tree that plays optimally • Take 1 or 2 items • Taking last item <strong>wins!</strong></p>
+  </div>
+
+  <!-- Top palette bar -->
+  <div class="palette-bar">
+    <div class="palette-group">
+      <span class="palette-label">Control:</span>
+      <button class="palette-btn btn-selector" onclick="addNode('SELECTOR')" id="btn-selector">
+        <span class="symbol">?</span> Selector
+      </button>
+      <button class="palette-btn btn-sequence" onclick="addNode('SEQUENCE')" id="btn-sequence">
+        <span class="symbol">→</span> Sequence
+      </button>
+    </div>
+
+    <div class="palette-group">
+      <span class="palette-label">Conditions:</span>
+      <button class="palette-btn btn-condition" onclick="addNode('CONDITION_EQUAL')" id="btn-cond-eq">
+        <span class="symbol">=</span> Items =
+      </button>
+      <button class="palette-btn btn-condition" onclick="addNode('CONDITION_GREATER')" id="btn-cond-gt">
+        <span class="symbol">&gt;</span> Items &gt;
+      </button>
+      <button class="palette-btn btn-condition" onclick="addNode('CONDITION_LESS')" id="btn-cond-lt">
+        <span class="symbol">&lt;</span> Items &lt;
+      </button>
+    </div>
+
+    <div class="palette-group">
+      <span class="palette-label">Actions:</span>
+      <button class="palette-btn btn-action" onclick="addNode('TAKE_1')" id="btn-take1">
+        <span class="symbol">①</span> Take 1
+      </button>
+      <button class="palette-btn btn-action" onclick="addNode('TAKE_2')" id="btn-take2">
+        <span class="symbol">②</span> Take 2
+      </button>
+    </div>
+
+    <div class="palette-group instructions">
+      <span class="palette-label highlight">💡 How:</span>
+      <span class="instructions-text">
+        1. Add Selector/Sequence →
+        2. Click to select it →
+        3. Add children
+      </span>
+      <button class="btn-clear" onclick="clearTree()">Clear Tree</button>
+    </div>
+  </div>
+
+  <!-- Tree canvas -->
+  <div class="tree-canvas" id="tree-canvas">
+    <div class="tree-container" id="tree-container" style="height: 260px;">
+      <div class="tree-empty" id="tree-empty">
+        <div class="icon">🌱</div>
+        <div class="text">Start by adding a <strong class="selector">Selector</strong> or <strong class="sequence">Sequence</strong></div>
+      </div>
+    </div>
+    
+    <!-- Resize handle -->
+    <div class="resize-handle" id="resize-handle">
+      <div class="resize-handle-bar"></div>
+    </div>
+
+    <div class="tree-legend">
+      <span><span class="selector">? Selector</span> = try children until one succeeds</span>
+      <span><span class="sequence">→ Sequence</span> = all children must succeed in order</span>
+      <span><span class="condition">= &gt; &lt;</span> = check item count</span>
+      <span><span class="action">① ②</span> = take items</span>
+    </div>
+  </div>
+
+  <!-- Game panel -->
+  <div class="game-panel">
+    <h3>🎮 Test Your AI</h3>
+    <div class="game-content">
+      <div class="items-display">
+        <div class="label">Items Remaining</div>
+        <div class="items" id="items-visual"></div>
+        <div class="count" id="items-count">7</div>
+      </div>
+
+      <div class="game-controls" id="game-controls">
+        <!-- Will be populated by JS -->
+      </div>
+
+      <div class="game-log" id="game-log">
+        <div class="title">Game Log:</div>
+        <div class="empty">No moves yet...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hint -->
+  <div class="hint">
+    💡 <strong>Remember your Minimax analysis!</strong> Which positions are winning? Build a tree that checks for those and takes the right amount.
+  </div>
+
+  <script>
+    // Node types configuration
+    const NODE_TYPES = {
+      SELECTOR: { 
+        name: 'Selector', 
+        symbol: '?',
+        color: '#8b5cf6',
+        canHaveChildren: true
+      },
+      SEQUENCE: { 
+        name: 'Sequence', 
+        symbol: '→',
+        color: '#3b82f6',
+        canHaveChildren: true
+      },
+      CONDITION_EQUAL: {
+        name: 'Items =',
+        symbol: '=',
+        color: '#f59e0b',
+        canHaveChildren: false,
+        hasParam: true
+      },
+      CONDITION_GREATER: {
+        name: 'Items >',
+        symbol: '>',
+        color: '#f59e0b',
+        canHaveChildren: false,
+        hasParam: true
+      },
+      CONDITION_LESS: {
+        name: 'Items <',
+        symbol: '<',
+        color: '#f59e0b',
+        canHaveChildren: false,
+        hasParam: true
+      },
+      TAKE_1: {
+        name: 'Take 1',
+        symbol: '①',
+        color: '#22c55e',
+        canHaveChildren: false,
+        action: 1
+      },
+      TAKE_2: {
+        name: 'Take 2',
+        symbol: '②',
+        color: '#22c55e',
+        canHaveChildren: false,
+        action: 2
+      }
+    };
+
+    // State
+    let tree = null;
+    let selectedId = null;
+    let nextId = 1;
+    let items = 7;
+    let isPlayerTurn = true;
+    let gameOver = false;
+    let gameStarted = false;
+    let winner = null;
+    let nodeResults = {};
+    let gameLog = [];
+
+    // Initialize
+    function init() {
+      updatePaletteButtons();
+      updateItemsDisplay();
+      renderGameControls();
+      setupResizeHandle();
+    }
+
+    // Setup resize handle
+    function setupResizeHandle() {
+      const handle = document.getElementById('resize-handle');
+      const container = document.getElementById('tree-container');
+      let startY, startHeight;
+
+      handle.addEventListener('mousedown', function(e) {
+        startY = e.clientY;
+        startHeight = container.offsetHeight;
+        
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        e.preventDefault();
+      });
+
+      function onMouseMove(e) {
+        const delta = e.clientY - startY;
+        const newHeight = Math.max(150, Math.min(800, startHeight + delta));
+        container.style.height = newHeight + 'px';
+      }
+
+      function onMouseUp() {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      }
+
+      // Touch support
+      handle.addEventListener('touchstart', function(e) {
+        startY = e.touches[0].clientY;
+        startHeight = container.offsetHeight;
+        
+        document.addEventListener('touchmove', onTouchMove);
+        document.addEventListener('touchend', onTouchEnd);
+        e.preventDefault();
+      });
+
+      function onTouchMove(e) {
+        const delta = e.touches[0].clientY - startY;
+        const newHeight = Math.max(150, Math.min(800, startHeight + delta));
+        container.style.height = newHeight + 'px';
+      }
+
+      function onTouchEnd() {
+        document.removeEventListener('touchmove', onTouchMove);
+        document.removeEventListener('touchend', onTouchEnd);
+      }
+    }
+
+    // Find node by id
+    function findNode(node, id) {
+      if (!node) return null;
+      if (node.id === id) return node;
+      for (const child of (node.children || [])) {
+        const found = findNode(child, id);
+        if (found) return found;
+      }
+      return null;
+    }
+
+    // Add node
+    function addNode(type) {
+      const newNode = {
+        id: nextId++,
+        type,
+        param: NODE_TYPES[type].hasParam ? 1 : undefined,
+        children: NODE_TYPES[type].canHaveChildren ? [] : undefined
+      };
+
+      if (!tree) {
+        tree = newNode;
+        selectedId = newNode.id;
+      } else if (selectedId !== null) {
+        const selected = findNode(tree, selectedId);
+        if (selected && NODE_TYPES[selected.type].canHaveChildren) {
+          selected.children.push(newNode);
+        }
+      }
+
+      renderTree();
+      updatePaletteButtons();
+    }
+
+    // Update node param
+    function updateParam(id, value) {
+      const node = findNode(tree, id);
+      if (node) {
+        node.param = parseInt(value) || 0;
+      }
+    }
+
+    // Delete node
+    function deleteNode(id) {
+      if (tree && tree.id === id) {
+        tree = null;
+        selectedId = null;
+      } else {
+        deleteNodeFromTree(tree, id);
+        if (selectedId === id) selectedId = null;
+      }
+      renderTree();
+      updatePaletteButtons();
+    }
+
+    function deleteNodeFromTree(node, id) {
+      if (!node || !node.children) return;
+      node.children = node.children.filter(c => c.id !== id);
+      node.children.forEach(c => deleteNodeFromTree(c, id));
+    }
+
+    // Select node
+    function selectNode(id) {
+      const node = findNode(tree, id);
+      if (node && NODE_TYPES[node.type].canHaveChildren) {
+        selectedId = selectedId === id ? null : id;
+        renderTree();
+        updatePaletteButtons();
+      }
+    }
+
+    // Clear tree
+    function clearTree() {
+      tree = null;
+      selectedId = null;
+      nextId = 1;
+      nodeResults = {};
+      renderTree();
+      updatePaletteButtons();
+    }
+
+    // Update palette buttons state
+    function updatePaletteButtons() {
+      const controlDisabled = tree && !selectedId;
+      const childDisabled = !selectedId;
+
+      document.getElementById('btn-selector').disabled = controlDisabled;
+      document.getElementById('btn-sequence').disabled = controlDisabled;
+      document.getElementById('btn-cond-eq').disabled = childDisabled;
+      document.getElementById('btn-cond-gt').disabled = childDisabled;
+      document.getElementById('btn-cond-lt').disabled = childDisabled;
+      document.getElementById('btn-take1').disabled = childDisabled;
+      document.getElementById('btn-take2').disabled = childDisabled;
+    }
+
+    // Render tree
+    function renderTree() {
+      const container = document.getElementById('tree-container');
+      const currentHeight = container.style.height;
+      
+      if (!tree) {
+        container.innerHTML = `
+          <div class="tree-empty">
+            <div class="icon">🌱</div>
+            <div class="text">Start by adding a <strong class="selector">Selector</strong> or <strong class="sequence">Sequence</strong></div>
+          </div>
+        `;
+        container.style.height = currentHeight;
+        return;
+      }
+
+      container.innerHTML = renderNode(tree);
+      container.style.height = currentHeight;
+    }
+
+    // Render single node
+    function renderNode(node) {
+      const info = NODE_TYPES[node.type];
+      const isSelected = selectedId === node.id;
+      const result = nodeResults[node.id];
+
+      let classes = 'tree-node';
+      if (info.canHaveChildren) classes += ' selectable';
+      if (isSelected) classes += ' selected';
+      if (result === 'success') classes += ' result-success';
+      if (result === 'failure') classes += ' result-failure';
+
+      let paramHtml = '';
+      if (info.hasParam) {
+        paramHtml = `<input type="number" class="param-input" value="${node.param || 0}" min="0" max="7" 
+                      onclick="event.stopPropagation()" 
+                      onchange="updateParam(${node.id}, this.value)">`;
+      }
+
+      let selectedIndicator = '';
+      if (isSelected) {
+        selectedIndicator = '<div class="selected-indicator">▼ selected</div>';
+      }
+
+      let childrenHtml = '';
+      if (node.children && node.children.length > 0) {
+        const connectorWidth = (node.children.length - 1) * 96;
+        const horizontalConnector = node.children.length > 1 
+          ? `<div class="tree-connector-h" style="width: ${connectorWidth}px;"></div>` 
+          : '';
+
+        const childrenNodes = node.children.map(child => `
+          <div class="tree-child-wrapper">
+            <div class="tree-connector-v"></div>
+            ${renderNode(child)}
+          </div>
+        `).join('');
+
+        childrenHtml = `
+          <div class="tree-connector-v"></div>
+          ${horizontalConnector}
+          <div class="tree-children">
+            ${childrenNodes}
+          </div>
+        `;
+      }
+
+      return `
+        <div class="tree-node-wrapper">
+          <div class="${classes}" style="background: ${info.color};" onclick="selectNode(${node.id})">
+            <button class="delete-btn" onclick="event.stopPropagation(); deleteNode(${node.id})">×</button>
+            <div class="symbol">${info.symbol}</div>
+            <div class="label">${info.name}${paramHtml}</div>
+            ${selectedIndicator}
+          </div>
+          ${childrenHtml}
+        </div>
+      `;
+    }
+
+    // Run behavior tree
+    function runTree(node, currentItems) {
+      if (!node) return { success: false, action: null, nodeResult: {} };
+      
+      const info = NODE_TYPES[node.type];
+      
+      // Action nodes
+      if (info.action) {
+        if (info.action <= currentItems) {
+          return { success: true, action: info.action, nodeResult: { [node.id]: 'success' } };
+        }
+        return { success: false, action: null, nodeResult: { [node.id]: 'failure' } };
+      }
+      
+      // Condition nodes
+      if (node.type.startsWith('CONDITION')) {
+        let result = false;
+        switch (node.type) {
+          case 'CONDITION_EQUAL': result = currentItems === node.param; break;
+          case 'CONDITION_GREATER': result = currentItems > node.param; break;
+          case 'CONDITION_LESS': result = currentItems < node.param; break;
+        }
+        return { success: result, action: null, nodeResult: { [node.id]: result ? 'success' : 'failure' } };
+      }
+      
+      // Selector
+      if (node.type === 'SELECTOR') {
+        let allResults = { [node.id]: 'failure' };
+        for (const child of (node.children || [])) {
+          const result = runTree(child, currentItems);
+          Object.assign(allResults, result.nodeResult);
+          if (result.success) {
+            allResults[node.id] = 'success';
+            return { success: true, action: result.action, nodeResult: allResults };
+          }
+        }
+        return { success: false, action: null, nodeResult: allResults };
+      }
+      
+      // Sequence
+      if (node.type === 'SEQUENCE') {
+        let lastAction = null;
+        let allResults = { [node.id]: 'success' };
+        for (const child of (node.children || [])) {
+          const result = runTree(child, currentItems);
+          Object.assign(allResults, result.nodeResult);
+          if (!result.success) {
+            allResults[node.id] = 'failure';
+            return { success: false, action: null, nodeResult: allResults };
+          }
+          if (result.action) lastAction = result.action;
+        }
+        return { success: true, action: lastAction, nodeResult: allResults };
+      }
+      
+      return { success: false, action: null, nodeResult: {} };
+    }
+
+    // Update items display
+    function updateItemsDisplay() {
+      const visual = document.getElementById('items-visual');
+      const count = document.getElementById('items-count');
+      
+      visual.innerHTML = Array(items).fill('<div class="item"></div>').join('');
+      count.textContent = items;
+    }
+
+    // Render game controls
+    function renderGameControls() {
+      const controls = document.getElementById('game-controls');
+
+      if (!gameStarted) {
+        controls.innerHTML = `
+          <div class="start-prompt">Who starts?</div>
+          <div class="start-buttons">
+            <button class="btn-start player" onclick="startGame(true)">🎯 I start</button>
+            <button class="btn-start ai" onclick="startGame(false)">🤖 AI starts</button>
+          </div>
+        `;
+        return;
+      }
+
+      let turnClass = 'turn-indicator ';
+      let turnText = '';
+      
+      if (gameOver) {
+        turnClass += winner === 'You' ? 'player-wins' : 'ai-wins';
+        turnText = winner === 'You' ? '🎉 You Win!' : '🤖 AI Wins!';
+      } else {
+        turnClass += isPlayerTurn ? 'player-turn' : 'ai-turn';
+        turnText = isPlayerTurn ? '🎯 Your Turn' : '🤖 AI thinking...';
+      }
+
+      let buttonsHtml = '';
+      if (!gameOver && isPlayerTurn) {
+        buttonsHtml = `
+          <div class="player-buttons">
+            <button class="btn-take" onclick="playerMove(1)" ${1 > items ? 'disabled' : ''}>Take 1</button>
+            <button class="btn-take" onclick="playerMove(2)" ${2 > items ? 'disabled' : ''}>Take 2</button>
+          </div>
+        `;
+      }
+
+      controls.innerHTML = `
+        <div class="${turnClass}">${turnText}</div>
+        ${buttonsHtml}
+        <button class="btn-reset" onclick="resetGame()">🔄 New Game</button>
+      `;
+    }
+
+    // Update game log
+    function updateGameLog() {
+      const log = document.getElementById('game-log');
+      
+      if (gameLog.length === 0) {
+        log.innerHTML = `<div class="title">Game Log:</div><div class="empty">No moves yet...</div>`;
+        return;
+      }
+
+      const entries = gameLog.map(entry => 
+        `<div class="entry ${entry.who === 'You' ? 'player' : 'ai'}">
+          <strong>${entry.who}</strong> took ${entry.took} → ${entry.left} left
+        </div>`
+      ).join('');
+
+      log.innerHTML = `<div class="title">Game Log:</div>${entries}`;
+      log.scrollTop = log.scrollHeight;
+    }
+
+    // Start game
+    function startGame(playerStarts) {
+      items = 7;
+      isPlayerTurn = playerStarts;
+      gameOver = false;
+      gameStarted = true;
+      winner = null;
+      nodeResults = {};
+      gameLog = [];
+
+      updateItemsDisplay();
+      renderGameControls();
+      updateGameLog();
+      renderTree();
+
+      if (!playerStarts) {
+        setTimeout(() => aiMove(7), 600);
+      }
+    }
+
+    // Reset game
+    function resetGame() {
+      items = 7;
+      gameStarted = false;
+      gameOver = false;
+      winner = null;
+      nodeResults = {};
+      gameLog = [];
+
+      updateItemsDisplay();
+      renderGameControls();
+      updateGameLog();
+      renderTree();
+    }
+
+    // Player move
+    function playerMove(n) {
+      if (gameOver || !isPlayerTurn || n > items) return;
+
+      items -= n;
+      gameLog.push({ who: 'You', took: n, left: items });
+
+      updateItemsDisplay();
+      updateGameLog();
+
+      if (items <= 0) {
+        gameOver = true;
+        winner = 'You';
+        renderGameControls();
+        return;
+      }
+
+      isPlayerTurn = false;
+      renderGameControls();
+      setTimeout(() => aiMove(items), 600);
+    }
+
+    // AI move
+    function aiMove(currentItems) {
+      const result = tree ? runTree(tree, currentItems) : { action: 1, nodeResult: {} };
+      nodeResults = result.nodeResult || {};
+      renderTree();
+
+      let take = result.action || 1;
+      take = Math.max(1, Math.min(2, Math.min(take, currentItems)));
+
+      items = currentItems - take;
+      gameLog.push({ who: 'AI', took: take, left: items });
+
+      updateItemsDisplay();
+      updateGameLog();
+
+      if (items <= 0) {
+        gameOver = true;
+        winner = 'AI';
+      } else {
+        isPlayerTurn = true;
+      }
+      
+      renderGameControls();
+    }
+
+    // Initialize on load
+    init();
+  </script>
+</body>
+</html>
