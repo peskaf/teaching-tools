@@ -1,5 +1,5 @@
-import { CONFIG, LOCATIONS } from './config.js';
-import { world, findFieldNeedingAttention, findFieldNeedingWater, findTreeToChop, findSheepToShear } from './world.js';
+import { CONFIG, LOCATIONS, DOOR_POSITIONS, getBedPosition, HOUSE_POSITIONS } from './config.js';
+import { world, findFieldNeedingAttention, findFieldNeedingWater, findTreeToChop, findSheepToShear, isBlockedByWall, hasFireOutbreak, extinguishFire } from './world.js';
 import {
     NodeStatus,
     SelectorNode,
@@ -18,7 +18,7 @@ export const villagers = [
         role: "farmer",
         color: "#e74c3c",
         x: 10,
-        y: 8,
+        y: 9,
         targetX: null,
         targetY: null,
         targetField: null,
@@ -26,10 +26,11 @@ export const villagers = [
         targetSheep: null,
         energy: 100,
         hunger: 100,
-        warmth: 100, // New: warmth level (100 = warm, 0 = freezing)
+        warmth: 70,
         inventory: 0,
         inventoryType: null,
-        wearingSweater: false, // New: wearing warm clothes
+        wearingSweater: false,
+        hasWater: false, // For firefighting
         state: "idle",
         currentAction: null,
         actionProgress: 0,
@@ -42,8 +43,8 @@ export const villagers = [
         emoji: "👩‍🌾",
         role: "miller",
         color: "#3498db",
-        x: 12,
-        y: 8,
+        x: 11,
+        y: 9,
         targetX: null,
         targetY: null,
         targetField: null,
@@ -51,10 +52,11 @@ export const villagers = [
         targetSheep: null,
         energy: 100,
         hunger: 100,
-        warmth: 100,
+        warmth: 70,
         inventory: 0,
         inventoryType: null,
         wearingSweater: false,
+        hasWater: false,
         state: "idle",
         currentAction: null,
         actionProgress: 0,
@@ -67,8 +69,8 @@ export const villagers = [
         emoji: "🪓",
         role: "lumberjack",
         color: "#27ae60",
-        x: 11,
-        y: 9,
+        x: 10,
+        y: 10,
         targetX: null,
         targetY: null,
         targetField: null,
@@ -76,10 +78,11 @@ export const villagers = [
         targetSheep: null,
         energy: 100,
         hunger: 100,
-        warmth: 100,
+        warmth: 70,
         inventory: 0,
         inventoryType: null,
         wearingSweater: false,
+        hasWater: false,
         state: "idle",
         currentAction: null,
         actionProgress: 0,
@@ -92,8 +95,8 @@ export const villagers = [
         emoji: "🐑",
         role: "shepherd",
         color: "#9b59b6",
-        x: 10,
-        y: 9,
+        x: 11,
+        y: 10,
         targetX: null,
         targetY: null,
         targetField: null,
@@ -101,10 +104,11 @@ export const villagers = [
         targetSheep: null,
         energy: 100,
         hunger: 100,
-        warmth: 100,
+        warmth: 70,
         inventory: 0,
         inventoryType: null,
         wearingSweater: false,
+        hasWater: false,
         state: "idle",
         currentAction: null,
         actionProgress: 0,
@@ -126,10 +130,11 @@ export const villagers = [
         targetSheep: null,
         energy: 100,
         hunger: 100,
-        warmth: 100,
+        warmth: 70,
         inventory: 0,
         inventoryType: null,
         wearingSweater: false,
+        hasWater: false,
         state: "idle",
         currentAction: null,
         actionProgress: 0,
@@ -159,6 +164,36 @@ function isNearLocation(villager, location, range = 1.5) {
     const centerY = location.y + location.h / 2;
     const dist = Math.sqrt(Math.pow(villager.x - centerX, 2) + Math.pow(villager.y - centerY, 2));
     return dist < range;
+}
+
+// Calculate target warmth based on location, season, and sweater
+function getTargetWarmth(villager) {
+    const season = gameStateRef?.season || 'summer';
+    let targetWarmth = CONFIG.WARMTH_COMFORTABLE;
+
+    // Season modifiers
+    switch (season) {
+        case 'winter': targetWarmth = 20; break;
+        case 'autumn': targetWarmth = 50; break;
+        case 'spring': targetWarmth = 60; break;
+        case 'summer': targetWarmth = 80; break;
+    }
+
+    // Inside house with fire = warm
+    if (isInsideBuilding(villager, LOCATIONS.house)) {
+        if (gameStateRef?.fireplaceLit) {
+            targetWarmth = 90;
+        } else {
+            targetWarmth = Math.max(targetWarmth, 50); // Inside is warmer than outside
+        }
+    }
+
+    // Sweater bonus
+    if (villager.wearingSweater) {
+        targetWarmth = Math.min(100, targetWarmth + 25);
+    }
+
+    return targetWarmth;
 }
 
 // Condition factory functions
@@ -192,6 +227,9 @@ export const CONDITIONS = {
     sheepHasWool: (v) => world.sheep.some(s => s.hasWool),
     fireNotLit: (v) => !gameStateRef.fireplaceLit,
     fireLit: (v) => gameStateRef.fireplaceLit,
+    // Fire outbreak conditions
+    fireOutbreak: (v) => hasFireOutbreak(),
+    hasWaterBucket: (v) => v.hasWater,
     // Storage checks
     storageHasWheat: (v) => gameStateRef.storedWheat >= CONFIG.WHEAT_PER_FLOUR,
     storageHasFlour: (v) => gameStateRef.storedFlour >= CONFIG.FLOUR_PER_BREAD,
@@ -203,7 +241,7 @@ export const CONDITIONS = {
     storageHasCookedFish: (v) => gameStateRef.storedCookedFish > 0
 };
 
-// Create a movement action to a target location
+// Create a movement action to a target location with door-aware pathfinding
 function createGoToAction(targetGetter) {
     return (villager) => {
         const target = targetGetter(villager);
@@ -218,7 +256,7 @@ function createGoToAction(targetGetter) {
         const dy = target.y - villager.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        if (dist < 0.5) {
+        if (dist < 0.3) {
             villager.state = 'idle';
             return NodeStatus.SUCCESS;
         }
@@ -229,8 +267,32 @@ function createGoToAction(targetGetter) {
             speed = 0.04;
         }
 
-        villager.x += (dx / dist) * speed;
-        villager.y += (dy / dist) * speed;
+        // Calculate next position
+        let nextX = villager.x + (dx / dist) * speed;
+        let nextY = villager.y + (dy / dist) * speed;
+
+        // Check for wall collision
+        if (isBlockedByWall(nextX, nextY)) {
+            // Try to find a path around - go to door first if entering/exiting building
+            // Simple approach: move along axis that isn't blocked
+            const testX = villager.x + (dx / dist) * speed;
+            const testY = villager.y;
+            if (!isBlockedByWall(testX, villager.y)) {
+                nextX = testX;
+                nextY = villager.y;
+            } else {
+                nextX = villager.x;
+                nextY = villager.y + (dy / dist) * speed;
+                if (isBlockedByWall(nextX, nextY)) {
+                    // Still blocked, try going around
+                    nextX = villager.x + speed * (Math.random() > 0.5 ? 1 : -1);
+                    nextY = villager.y;
+                }
+            }
+        }
+
+        villager.x = nextX;
+        villager.y = nextY;
         villager.state = 'walking';
         villager.energy -= CONFIG.ENERGY_DRAIN * 0.5;
 
@@ -264,35 +326,68 @@ export const ACTIONS = {
     }),
 
     goToHouse: createGoToAction((villager) => {
-        // Calculate bed position matching renderer
-        const numBeds = Math.min(villagers.length, 5);
-        const bedWidth = 0.6;
-        const bedSpacing = (LOCATIONS.house.w - bedWidth * numBeds) / (numBeds + 1);
-        const bedX = LOCATIONS.house.x + bedSpacing + villager.id * (bedWidth + bedSpacing) + bedWidth / 2;
-        const bedY = LOCATIONS.house.y + 0.5 + 0.5;
-        return { x: bedX, y: bedY };
+        // Go to door first, then to bed
+        const doorPos = DOOR_POSITIONS.house;
+        const bedPos = getBedPosition(villager.id);
+
+        // If outside house, go to door
+        if (!isInsideBuilding(villager, LOCATIONS.house)) {
+            return { x: doorPos.x, y: doorPos.y };
+        }
+        // Inside house, go to bed
+        return bedPos;
     }),
 
-    goToFireplace: createGoToAction(() => ({
-        // Fireplace is on the right side of the house
-        x: LOCATIONS.house.x + LOCATIONS.house.w - 1,
-        y: LOCATIONS.house.y + LOCATIONS.house.h / 2
-    })),
+    goToFireplace: createGoToAction((villager) => {
+        // Go to door first if outside
+        if (!isInsideBuilding(villager, LOCATIONS.house)) {
+            return DOOR_POSITIONS.house;
+        }
+        return HOUSE_POSITIONS.fireplace;
+    }),
 
-    goToStorage: createGoToAction(() => ({
-        x: LOCATIONS.storage.x + LOCATIONS.storage.w / 2,
-        y: LOCATIONS.storage.y + LOCATIONS.storage.h / 2
-    })),
+    goToStove: createGoToAction((villager) => {
+        // Go to door first if outside
+        if (!isInsideBuilding(villager, LOCATIONS.house)) {
+            return DOOR_POSITIONS.house;
+        }
+        return HOUSE_POSITIONS.stove;
+    }),
+
+    goToKnittingStation: createGoToAction((villager) => {
+        // Go to door first if outside
+        if (!isInsideBuilding(villager, LOCATIONS.house)) {
+            return DOOR_POSITIONS.house;
+        }
+        return HOUSE_POSITIONS.knittingStation;
+    }),
+
+    goToStorage: createGoToAction((villager) => {
+        // Go to door first if outside
+        if (!isInsideBuilding(villager, LOCATIONS.storage)) {
+            return DOOR_POSITIONS.storage;
+        }
+        return {
+            x: LOCATIONS.storage.x + LOCATIONS.storage.w / 2,
+            y: LOCATIONS.storage.y + LOCATIONS.storage.h / 2
+        };
+    }),
 
     goToWell: createGoToAction(() => ({
         x: LOCATIONS.well.x + LOCATIONS.well.w / 2,
         y: LOCATIONS.well.y + LOCATIONS.well.h
     })),
 
-    goToMill: createGoToAction(() => ({
-        x: LOCATIONS.mill.x + LOCATIONS.mill.w / 2,
-        y: LOCATIONS.mill.y + LOCATIONS.mill.h / 2
-    })),
+    goToMill: createGoToAction((villager) => {
+        // Go to door first if outside
+        if (!isInsideBuilding(villager, LOCATIONS.mill)) {
+            return DOOR_POSITIONS.mill;
+        }
+        return {
+            x: LOCATIONS.mill.x + LOCATIONS.mill.w / 2,
+            y: LOCATIONS.mill.y + LOCATIONS.mill.h / 2
+        };
+    }),
 
     goToForest: createGoToAction((villager) => {
         const tree = findTreeToChop(villager, villagers);
@@ -309,13 +404,50 @@ export const ACTIONS = {
             villager.targetSheep = sheep;
             return { x: sheep.x, y: sheep.y };
         }
-        return { x: LOCATIONS.pasture.x + 1, y: LOCATIONS.pasture.y + 1 };
+        // Go through gate
+        return {
+            x: LOCATIONS.pasture.x + 1.5,
+            y: LOCATIONS.pasture.y + LOCATIONS.pasture.h
+        };
     }),
 
     goToPond: createGoToAction(() => ({
         x: LOCATIONS.pond.x + LOCATIONS.pond.w / 2,
         y: LOCATIONS.pond.y + LOCATIONS.pond.h
     })),
+
+    // Fire fighting actions
+    goToFire: createGoToAction(() => {
+        if (world.fireOutbreak) {
+            return { x: world.fireOutbreak.x, y: world.fireOutbreak.y + 1 };
+        }
+        return null;
+    }),
+
+    getWater: (villager) => {
+        if (!isNearLocation(villager, LOCATIONS.well, 2)) return NodeStatus.FAILURE;
+
+        villager.state = 'gettingWater';
+        villager.hasWater = true;
+        return NodeStatus.SUCCESS;
+    },
+
+    extinguishFire: (villager) => {
+        if (!villager.hasWater) return NodeStatus.FAILURE;
+        if (!world.fireOutbreak) return NodeStatus.SUCCESS;
+
+        const fire = world.fireOutbreak;
+        const dist = Math.sqrt(Math.pow(fire.x - villager.x, 2) + Math.pow(fire.y - villager.y, 2));
+        if (dist > 2) return NodeStatus.FAILURE;
+
+        villager.state = 'firefighting';
+        villager.hasWater = false;
+
+        if (extinguishFire(10)) {
+            return NodeStatus.SUCCESS;
+        }
+        return NodeStatus.RUNNING;
+    },
 
     plantCrops: (villager) => {
         // Can't plant in winter
@@ -505,6 +637,7 @@ export const ACTIONS = {
 
     bakeBread: (villager) => {
         if (!isInsideBuilding(villager, LOCATIONS.house)) return NodeStatus.FAILURE;
+        if (!gameStateRef.fireplaceLit) return NodeStatus.FAILURE; // Need fire for stove
         if (villager.inventoryType !== 'flour' || villager.inventory < CONFIG.FLOUR_PER_BREAD) {
             return NodeStatus.FAILURE;
         }
@@ -516,7 +649,7 @@ export const ACTIONS = {
             villager.inventory = 0;
             villager.inventoryType = null;
             gameStateRef.storedBread++;
-            gameStateRef.totalBreadBaked++; // Track for objectives
+            gameStateRef.totalBreadBaked++;
             villager.actionProgress = 0;
             villager.energy -= CONFIG.ENERGY_DRAIN * 10;
             return NodeStatus.SUCCESS;
@@ -598,7 +731,7 @@ export const ACTIONS = {
             villager.inventory = 0;
             villager.inventoryType = null;
             gameStateRef.storedSweaters++;
-            gameStateRef.totalSweatersKnit++; // Track for objectives
+            gameStateRef.totalSweatersKnit++;
             villager.actionProgress = 0;
             villager.energy -= CONFIG.ENERGY_DRAIN * 10;
             return NodeStatus.SUCCESS;
@@ -648,7 +781,7 @@ export const ACTIONS = {
             villager.inventory = 0;
             villager.inventoryType = null;
             gameStateRef.storedCookedFish++;
-            gameStateRef.totalFishCooked++; // Track for objectives
+            gameStateRef.totalFishCooked++;
             villager.actionProgress = 0;
             villager.energy -= CONFIG.ENERGY_DRAIN * 5;
             return NodeStatus.SUCCESS;
@@ -723,7 +856,7 @@ export const ACTIONS = {
         if (!gameStateRef.fireplaceLit) return NodeStatus.FAILURE;
 
         villager.state = 'warming';
-        villager.warmth = Math.min(100, villager.warmth + CONFIG.WARMTH_RESTORE_FIRE);
+        // Warmth will naturally increase due to location-based system
 
         if (villager.warmth >= 80) {
             return NodeStatus.SUCCESS;
@@ -767,13 +900,21 @@ export function createNode(type, subtype) {
 // Create a simple default tree (students should customize per villager)
 export function createDefaultTree() {
     return new SelectorNode([
+        // 0. EMERGENCY: Fight fire!
+        new SequenceNode([
+            new ConditionNode('fireOutbreak', '🔥 Fire Outbreak?', CONDITIONS.fireOutbreak),
+            new ActionNode('goToWell', '💧 Go to Well', ACTIONS.goToWell),
+            new ActionNode('getWater', '💧 Get Water', ACTIONS.getWater),
+            new ActionNode('goToFire', '🔥 Go to Fire', ACTIONS.goToFire),
+            new ActionNode('extinguishFire', '💧 Extinguish', ACTIONS.extinguishFire)
+        ]),
         // 1. Sleep at night
         new SequenceNode([
             new ConditionNode('isNight', '🌙 Is Night?', CONDITIONS.isNight),
             new ActionNode('goToHouse', '🏠 Go to House', ACTIONS.goToHouse),
             new ActionNode('sleep', '😴 Sleep', ACTIONS.sleep)
         ]),
-        // 2. Warm up if cold in winter
+        // 2. Warm up if cold
         new SequenceNode([
             new ConditionNode('isCold', '🥶 Is Cold?', CONDITIONS.isCold),
             new ConditionNode('fireLit', '🔥 Fire Lit?', CONDITIONS.fireLit),
@@ -821,10 +962,10 @@ export function createDefaultTree() {
 // Reset all villagers to initial state
 export function resetVillagers() {
     const startPositions = [
-        { x: 10, y: 8 },
-        { x: 12, y: 8 },
-        { x: 11, y: 9 },
         { x: 10, y: 9 },
+        { x: 11, y: 9 },
+        { x: 10, y: 10 },
+        { x: 11, y: 10 },
         { x: 12, y: 9 }
     ];
 
@@ -833,10 +974,11 @@ export function resetVillagers() {
         v.y = startPositions[i].y;
         v.energy = 100;
         v.hunger = 100;
-        v.warmth = 100;
+        v.warmth = 70;
         v.inventory = 0;
         v.inventoryType = null;
         v.wearingSweater = false;
+        v.hasWater = false;
         v.state = 'idle';
         v.targetField = null;
         v.targetTree = null;
@@ -862,18 +1004,10 @@ export function updateVillagers() {
         // Natural hunger drain
         villager.hunger = Math.max(0, villager.hunger - CONFIG.HUNGER_DRAIN);
 
-        // Warmth drain (more in winter, less with sweater)
-        let warmthDrain = CONFIG.WARMTH_DRAIN_BASE;
-        if (gameStateRef.season === 'winter') {
-            warmthDrain += CONFIG.WARMTH_DRAIN_WINTER;
-        }
-        if (villager.wearingSweater) {
-            warmthDrain *= CONFIG.WARMTH_RESTORE_SWEATER;
-        }
-        // Warmer inside house with fire
-        if (isInsideBuilding(villager, LOCATIONS.house) && gameStateRef.fireplaceLit) {
-            warmthDrain = 0; // No warmth loss near fire
-        }
-        villager.warmth = Math.max(0, villager.warmth - warmthDrain);
+        // Location-based warmth system
+        const targetWarmth = getTargetWarmth(villager);
+        const warmthDiff = targetWarmth - villager.warmth;
+        villager.warmth += warmthDiff * CONFIG.WARMTH_CHANGE_RATE * 0.1;
+        villager.warmth = Math.max(0, Math.min(100, villager.warmth));
     });
 }

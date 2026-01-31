@@ -101,6 +101,8 @@
                                 <div class="palette-node condition" data-type="condition" data-subtype="sheepHasWool">🐑 Sheep Has Wool?</div>
                                 <div class="palette-node condition" data-type="condition" data-subtype="fireNotLit">🔥 Fire Not Lit?</div>
                                 <div class="palette-node condition" data-type="condition" data-subtype="fireLit">🔥 Fire Lit?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="fireOutbreak">🚨 Fire Outbreak?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="hasWaterBucket">🪣 Has Water Bucket?</div>
                             </div>
                         </div>
 
@@ -125,12 +127,15 @@
                                 <div class="palette-node action" data-type="action" data-subtype="goToFieldForWatering">🚶 Go to Field (Water)</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToHouse">🏠 Go to House</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToFireplace">🔥 Go to Fireplace</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToStove">🍳 Go to Stove</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToKnittingStation">🧶 Go to Knitting</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToStorage">📦 Go to Storage</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToWell">💧 Go to Well</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToMill">🏭 Go to Mill</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToForest">🌲 Go to Forest</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToPasture">🐑 Go to Pasture</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToPond">🎣 Go to Pond</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToFire">🚨 Go to Fire</div>
                             </div>
                         </div>
 
@@ -209,6 +214,14 @@
                             <div class="palette-nodes">
                                 <div class="palette-node action" data-type="action" data-subtype="sleep">😴 Sleep</div>
                                 <div class="palette-node action" data-type="action" data-subtype="rest">☕ Rest</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Actions - Firefighting</h4>
+                            <div class="palette-nodes">
+                                <div class="palette-node action" data-type="action" data-subtype="getWater">🪣 Get Water</div>
+                                <div class="palette-node action" data-type="action" data-subtype="extinguishFire">🧯 Extinguish Fire</div>
                             </div>
                         </div>
 
@@ -347,10 +360,12 @@
                         <h3 style="margin-top: 15px;">🥶 Warmth System</h3>
                         <p>Villagers need to stay warm, especially in winter!</p>
                         <ul>
-                            <li>Warmth drains faster in winter</li>
-                            <li>🧥 <strong>Sweaters</strong> reduce warmth loss</li>
-                            <li>🔥 <strong>Fireplace</strong> restores warmth (needs wood!)</li>
-                            <li>Cold villagers move slower and may freeze!</li>
+                            <li>Warmth is based on location, not time</li>
+                            <li>🏠 Being inside the house helps</li>
+                            <li>🔥 Fireplace makes the house warm (needs wood!)</li>
+                            <li>🧥 <strong>Sweaters</strong> add warmth bonus</li>
+                            <li>❄️ Winter is coldest, summer is warmest</li>
+                            <li>Cold villagers move slower!</li>
                         </ul>
 
                         <h3 style="margin-top: 15px;">🍞 Food Production</h3>
@@ -371,9 +386,18 @@
 
                         <h3 style="margin-top: 15px;">🧶 Wool & Sweaters</h3>
                         <ul>
-                            <li>Shear sheep at the pasture for wool</li>
-                            <li>Knit sweaters to stay warm in winter</li>
+                            <li>Shear sheep at the fenced pasture for wool</li>
+                            <li>Knit sweaters at the knitting station in the house</li>
+                            <li>Sheep roam around in their pasture</li>
                             <li>Sheep regrow wool over time</li>
+                        </ul>
+
+                        <h3 style="margin-top: 15px;">🚨 Fire Emergencies</h3>
+                        <ul>
+                            <li>Buildings can randomly catch fire!</li>
+                            <li>Go to the well to get water</li>
+                            <li>Bring water to the fire to extinguish it</li>
+                            <li>Firefighting should be top priority!</li>
                         </ul>
 
                         <h3 style="margin-top: 15px;">⏰ Time</h3>
