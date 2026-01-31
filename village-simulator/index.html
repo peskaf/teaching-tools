@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Village AI - Behavioral Tree Simulator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Village AI Simulator</h1>
+            <div class="time-controls">
+                <div class="time-display">
+                    <span class="day">Day 1</span> · <span class="time">06:00</span>
+                </div>
+                <div class="speed-controls">
+                    <button class="speed-btn" data-speed="0">⏸</button>
+                    <button class="speed-btn active" data-speed="1">1×</button>
+                    <button class="speed-btn" data-speed="2">2×</button>
+                    <button class="speed-btn" data-speed="5">5×</button>
+                    <button class="speed-btn" data-speed="10">10×</button>
+                </div>
+            </div>
+            <div class="sim-controls">
+                <button class="sim-btn reset" onclick="resetSimulation()">🔄 Reset</button>
+                <button class="sim-btn" id="startBtn" onclick="toggleSimulation()">▶ Start</button>
+            </div>
+        </header>
+
+        <div class="game-area">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+
+        <div class="side-panel">
+            <div class="panel-tabs">
+                <button class="panel-tab active" data-tab="trees">🌳 Trees</button>
+                <button class="panel-tab" data-tab="status">📊 Status</button>
+                <button class="panel-tab" data-tab="help">❓ Help</button>
+            </div>
+
+            <div class="panel-content">
+                <!-- Trees Panel -->
+                <div class="panel-section active" id="treesPanel">
+                    <div class="villager-select">
+                        <button class="villager-btn active" data-villager="0">
+                            <span class="emoji">👨‍🌾</span>
+                            Karel
+                        </button>
+                        <button class="villager-btn" data-villager="1">
+                            <span class="emoji">👩‍🌾</span>
+                            Marie
+                        </button>
+                        <button class="villager-btn" data-villager="2">
+                            <span class="emoji">👦</span>
+                            Tomáš
+                        </button>
+                    </div>
+
+                    <div class="tree-editor">
+                        <h3>📐 Behavior Tree</h3>
+                        <div class="tree-container" id="treeContainer">
+                            <!-- Tree will be rendered here -->
+                        </div>
+                    </div>
+
+                    <div class="node-palette">
+                        <h3>🧩 Add Nodes</h3>
+                        <p style="font-size: 0.75em; color: #888; margin-bottom: 10px;">Click a node below to add it to the tree</p>
+
+                        <div class="palette-category">
+                            <h4>Control Nodes</h4>
+                            <div class="palette-nodes">
+                                <div class="palette-node selector" data-type="selector" data-subtype="selector">❓ Selector</div>
+                                <div class="palette-node sequence" data-type="sequence" data-subtype="sequence">➡️ Sequence</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Conditions</h4>
+                            <div class="palette-nodes">
+                                <div class="palette-node condition" data-type="condition" data-subtype="isNight">🌙 Is Night?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="isDay">☀️ Is Day?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="isTired">😴 Is Tired?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="hasItems">🎒 Has Items?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="cropsReady">🌾 Crops Ready?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="fieldEmpty">🟫 Field Empty?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="needsWater">💧 Needs Water?</div>
+                            </div>
+                        </div>
+
+                        <div class="palette-category">
+                            <h4>Actions</h4>
+                            <div class="palette-nodes">
+                                <div class="palette-node action" data-type="action" data-subtype="goToField">🚶 Go to Field</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToHouse">🏠 Go to House</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToStorage">📦 Go to Storage</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToWell">💧 Go to Well</div>
+                                <div class="palette-node action" data-type="action" data-subtype="plantCrops">🌱 Plant Crops</div>
+                                <div class="palette-node action" data-type="action" data-subtype="harvestCrops">🌾 Harvest</div>
+                                <div class="palette-node action" data-type="action" data-subtype="waterCrops">💧 Water Crops</div>
+                                <div class="palette-node action" data-type="action" data-subtype="storeItems">📥 Store Items</div>
+                                <div class="palette-node action" data-type="action" data-subtype="sleep">😴 Sleep</div>
+                                <div class="palette-node action" data-type="action" data-subtype="rest">☕ Rest</div>
+                            </div>
+                        </div>
+
+                        <div class="legend">
+                            <div class="legend-item"><div class="legend-color" style="background:#9b59b6"></div> Selector: Try until success</div>
+                            <div class="legend-item"><div class="legend-color" style="background:#3498db"></div> Sequence: Do all in order</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Panel -->
+                <div class="panel-section" id="statusPanel">
+                    <div class="status-section">
+                        <h3>👥 Villagers</h3>
+                        <div id="villagerStatuses"></div>
+                    </div>
+
+                    <div class="world-stats">
+                        <h3>🌍 Village Stats</h3>
+                        <div class="stat-grid">
+                            <div class="stat-item">
+                                <div class="value" id="statStorage">0</div>
+                                <div class="label">Stored Crops</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="statPlanted">0</div>
+                                <div class="label">Fields Planted</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="statHarvested">0</div>
+                                <div class="label">Total Harvested</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="statDays">1</div>
+                                <div class="label">Days Passed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Help Panel -->
+                <div class="panel-section" id="helpPanel">
+                    <div class="instructions">
+                        <h3>🎮 How to Play</h3>
+                        <p>Design behavior trees for each villager to automate their daily tasks in the village.</p>
+
+                        <h3 style="margin-top: 15px;">🌳 Behavior Trees</h3>
+                        <p>Trees are evaluated from top to bottom each tick:</p>
+                        <ul>
+                            <li><strong>Selector (❓)</strong> - Tries children until one succeeds</li>
+                            <li><strong>Sequence (➡️)</strong> - Runs all children in order, stops on failure</li>
+                            <li><strong>Condition</strong> - Checks if something is true</li>
+                            <li><strong>Action</strong> - Makes the villager do something</li>
+                        </ul>
+
+                        <h3 style="margin-top: 15px;">💧 Watering System</h3>
+                        <p>Crops need water to grow!</p>
+                        <ul>
+                            <li>After planting, crops need to be watered</li>
+                            <li>Crops only grow while watered</li>
+                            <li>Water runs out after ~1 hour, re-water to continue growth</li>
+                            <li>Look for the 💧 icon on dry crops</li>
+                        </ul>
+
+                        <h3 style="margin-top: 15px;">📋 Example Tree</h3>
+                        <p>A complete farming routine:</p>
+                        <ul>
+                            <li>Selector (root)
+                                <ul>
+                                    <li>Sequence: Sleep at night
+                                        <ul>
+                                            <li>Condition: Is Night?</li>
+                                            <li>Action: Go to House</li>
+                                            <li>Action: Sleep</li>
+                                        </ul>
+                                    </li>
+                                    <li>Sequence: Store crops
+                                        <ul>
+                                            <li>Condition: Has Items?</li>
+                                            <li>Action: Go to Storage</li>
+                                            <li>Action: Store Items</li>
+                                        </ul>
+                                    </li>
+                                    <li>Sequence: Harvest
+                                        <ul>
+                                            <li>Condition: Crops Ready?</li>
+                                            <li>Action: Go to Field</li>
+                                            <li>Action: Harvest</li>
+                                        </ul>
+                                    </li>
+                                    <li>Sequence: Water crops
+                                        <ul>
+                                            <li>Condition: Needs Water?</li>
+                                            <li>Action: Go to Well</li>
+                                            <li>Action: Go to Field</li>
+                                            <li>Action: Water Crops</li>
+                                        </ul>
+                                    </li>
+                                    <li>Sequence: Plant
+                                        <ul>
+                                            <li>Condition: Field Empty?</li>
+                                            <li>Action: Go to Field</li>
+                                            <li>Action: Plant Crops</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                        <h3 style="margin-top: 15px;">⏰ Time</h3>
+                        <p><code>06:00-20:00</code> = Day</p>
+                        <p><code>20:00-06:00</code> = Night</p>
+                        <p>Crops take ~4 hours to grow (when watered). Villagers get tired over time.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initGame } from './game.js';
+        initGame();
+    </script>
+</body>
+</html>
