@@ -1,4 +1,4 @@
-import { CONFIG } from './config.js';
+import { CONFIG, VERSION } from './config.js';
 import { generateWorld, updateCrops, updateTrees, updateFire, resetWorld } from './world.js';
 import { villagers, setGameStateRef, updateVillagers, resetVillagers, createDefaultTree } from './villager.js';
 import { initRenderer, setRendererGameState, render } from './renderer.js';
@@ -135,6 +135,13 @@ export function setSpeed(speed) {
 
 // Initialize the game
 export function initGame() {
+    // Display version
+    const versionEl = document.getElementById('versionDisplay');
+    if (versionEl) {
+        versionEl.textContent = `v${VERSION}`;
+    }
+    console.log(`Village AI Simulator v${VERSION}`);
+
     // Set game state reference for other modules
     setGameStateRef(gameState);
     setRendererGameState(gameState);

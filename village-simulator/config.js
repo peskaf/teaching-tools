@@ -1,3 +1,6 @@
+// Version for cache-busting verification
+export const VERSION = "1.0.1";
+
 // Game Configuration
 export const CONFIG = {
     TILE_SIZE: 32,
@@ -97,31 +100,25 @@ export const DOOR_POSITIONS = {
 };
 
 // Bed positions within house (in tile coordinates)
-// House at (3,2) w=7, h=5: interior x:4-8, y:3-5
-// Layout: Beds on bottom row (y=5), workstations on top row (y=3)
+// House at (3,2) w=7, h=5: interior tiles x:4,5,6,7,8 y:3,4,5
+// ALL POSITIONS USE TILE CENTERS: tileX + 0.5, tileY + 0.5
 export function getBedPosition(villagerIndex) {
-    const interiorX = LOCATIONS.house.x + 1; // = 4
-    const interiorY = LOCATIONS.house.y + LOCATIONS.house.h - 2; // Bottom row of interior = 5
-    const interiorW = LOCATIONS.house.w - 2; // = 5
-
-    // 5 beds spread across the bottom row of interior (y=5)
-    const numBeds = 5;
-    const spacing = interiorW / numBeds; // = 1
-    const bedX = interiorX + spacing * villagerIndex + spacing / 2;
-    const bedY = interiorY + 0.5;
-    return { x: bedX, y: bedY };
+    // Beds on bottom interior row (tile y=5), spread across tiles x=4,5,6,7,8
+    const bedTileX = LOCATIONS.house.x + 1 + villagerIndex; // tiles 4,5,6,7,8
+    const bedTileY = LOCATIONS.house.y + LOCATIONS.house.h - 2; // tile 5
+    return { x: bedTileX + 0.5, y: bedTileY + 0.5 };
 }
 
 // Interior positions within house (all inside the walls)
-// House at (3,2) w=7, h=5: interior x:4-8, y:3-5
-// Top row (y=3): fireplace, stove, knitting station
+// House at (3,2) w=7, h=5: interior tiles x:4,5,6,7,8 y:3,4,5
+// ALL POSITIONS USE TILE CENTERS: tileX + 0.5, tileY + 0.5
 export const HOUSE_POSITIONS = {
-    // Fireplace on right side, top row
-    fireplace: { x: LOCATIONS.house.x + LOCATIONS.house.w - 2.5, y: LOCATIONS.house.y + 1.5 },
-    // Stove in center-right, top row
-    stove: { x: LOCATIONS.house.x + LOCATIONS.house.w - 3.5, y: LOCATIONS.house.y + 1.5 },
-    // Knitting station on left side, top row
-    knittingStation: { x: LOCATIONS.house.x + 1.5, y: LOCATIONS.house.y + 1.5 }
+    // Fireplace on tile (8, 3) - right side, top row
+    fireplace: { x: LOCATIONS.house.x + LOCATIONS.house.w - 2 + 0.5, y: LOCATIONS.house.y + 1 + 0.5 },
+    // Stove on tile (7, 3) - center-right, top row
+    stove: { x: LOCATIONS.house.x + LOCATIONS.house.w - 3 + 0.5, y: LOCATIONS.house.y + 1 + 0.5 },
+    // Knitting station on tile (4, 3) - left side, top row
+    knittingStation: { x: LOCATIONS.house.x + 1 + 0.5, y: LOCATIONS.house.y + 1 + 0.5 }
 };
 
 // Villager roles (for educational purposes - students assign different trees to each)
