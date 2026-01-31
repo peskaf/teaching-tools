@@ -163,6 +163,12 @@ function drawTile(x, y, type) {
         case TERRAIN_TYPES.FENCE:
             baseColor = getSeasonGrassColor(); // Draw grass underneath
             break;
+        case TERRAIN_TYPES.WALL:
+            baseColor = COLORS.wallStone;
+            break;
+        case TERRAIN_TYPES.DOOR:
+            baseColor = COLORS.floorWood;
+            break;
         default:
             baseColor = COLORS.grass;
     }
@@ -203,12 +209,6 @@ function drawTile(x, y, type) {
         // Draw fence posts and rails
         ctx.fillStyle = COLORS.fencePost;
 
-        // Determine fence orientation based on neighbors
-        const isTopEdge = y > 0 && world.terrain[y-1] && world.terrain[y-1][x] !== TERRAIN_TYPES.FENCE;
-        const isBottomEdge = y < world.height - 1 && world.terrain[y+1] && world.terrain[y+1][x] !== TERRAIN_TYPES.FENCE;
-        const isLeftEdge = x > 0 && world.terrain[y][x-1] !== TERRAIN_TYPES.FENCE;
-        const isRightEdge = x < world.width - 1 && world.terrain[y][x+1] !== TERRAIN_TYPES.FENCE;
-
         // Corner posts
         ctx.fillRect(px + 2 * scale, py + 2 * scale, 4 * scale, size - 4 * scale);
         ctx.fillRect(px + size - 6 * scale, py + 2 * scale, 4 * scale, size - 4 * scale);
@@ -224,10 +224,59 @@ function drawTile(x, y, type) {
         ctx.arc(px + 4 * scale, py + 2 * scale, 3 * scale, 0, Math.PI * 2);
         ctx.arc(px + size - 4 * scale, py + 2 * scale, 3 * scale, 0, Math.PI * 2);
         ctx.fill();
+    } else if (type === TERRAIN_TYPES.WALL) {
+        // Stone/brick texture for walls
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        // Horizontal mortar lines
+        ctx.fillRect(px, py + size * 0.33, size, 1);
+        ctx.fillRect(px, py + size * 0.66, size, 1);
+        // Vertical mortar lines (offset)
+        ctx.fillRect(px + size * 0.5, py, 1, size * 0.33);
+        ctx.fillRect(px + size * 0.25, py + size * 0.33, 1, size * 0.33);
+        ctx.fillRect(px + size * 0.75, py + size * 0.33, 1, size * 0.33);
+        ctx.fillRect(px + size * 0.5, py + size * 0.66, 1, size * 0.34);
+    } else if (type === TERRAIN_TYPES.DOOR) {
+        // Door frame
+        ctx.fillStyle = COLORS.bedFrame;
+        ctx.fillRect(px + 2 * scale, py, size - 4 * scale, size);
+        // Door panel
+        ctx.fillStyle = '#5a4535';
+        ctx.fillRect(px + 4 * scale, py + 2 * scale, size - 8 * scale, size - 4 * scale);
+        // Door handle
+        ctx.fillStyle = '#8a7a60';
+        ctx.beginPath();
+        ctx.arc(px + size * 0.7, py + size * 0.5, 2 * scale, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (type === TERRAIN_TYPES.GATE) {
+        // Fence gate - grass base with open gate
+        const grassBase = getSeasonGrassColor();
+        ctx.fillStyle = grassBase;
+        ctx.fillRect(px, py, size, size);
+
+        // Gate frame (open gate swung to side)
+        ctx.fillStyle = COLORS.fence;
+        // Left post
+        ctx.fillRect(px + 1 * scale, py + 2 * scale, 3 * scale, size - 4 * scale);
+        // Right post
+        ctx.fillRect(px + size - 4 * scale, py + 2 * scale, 3 * scale, size - 4 * scale);
+
+        // Gate slats (angled to show it's open)
+        ctx.fillStyle = COLORS.fencePost;
+        ctx.save();
+        ctx.translate(px + 4 * scale, py + size / 2);
+        ctx.rotate(-0.3); // Slightly open
+        ctx.fillRect(0, -size * 0.35, 2 * scale, size * 0.7);
+        ctx.fillRect(4 * scale, -size * 0.35, 2 * scale, size * 0.7);
+        ctx.restore();
+
+        // Horizontal rails on gate
+        ctx.fillStyle = COLORS.fence;
+        ctx.fillRect(px + 4 * scale, py + size * 0.3, size * 0.4, 2 * scale);
+        ctx.fillRect(px + 4 * scale, py + size * 0.6, size * 0.4, 2 * scale);
     }
 }
 
-// Draw building with open floorplan
+// Draw building interior elements (walls are now tile-based)
 function drawBuilding(building) {
     const scale = getScale();
     const offset = getOffset();
@@ -237,73 +286,52 @@ function drawBuilding(building) {
     const py = offset.y + building.y * tileSize;
     const w = building.w * tileSize;
     const h = building.h * tileSize;
-    const wallThickness = 4 * scale;
-
-    // Draw floor
-    ctx.fillStyle = building.type === 'house' ? COLORS.floorWood : COLORS.floor;
-    ctx.fillRect(px, py, w, h);
-
-    // Floor board lines for house
-    if (building.type === 'house') {
-        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < building.w; i++) {
-            ctx.beginPath();
-            ctx.moveTo(px + i * tileSize, py);
-            ctx.lineTo(px + i * tileSize, py + h);
-            ctx.stroke();
-        }
-    }
 
     // Draw interior based on building type
     if (building.type === 'house') {
-        drawHouseInterior(px, py, w, h, tileSize, scale);
+        drawHouseInterior(px, py, w, h, tileSize, scale, building);
     } else if (building.type === 'storage') {
-        drawStorageInterior(px, py, w, h, tileSize, scale);
+        drawStorageInterior(px, py, w, h, tileSize, scale, building);
     } else if (building.type === 'well') {
         drawWell(px, py, w, h, tileSize, scale);
         return;
     } else if (building.type === 'mill') {
-        drawMillInterior(px, py, w, h, tileSize, scale);
+        drawMillInterior(px, py, w, h, tileSize, scale, building);
     }
 
-    // Draw walls
-    ctx.fillStyle = building.type === 'house' ? COLORS.wallWood : COLORS.wallStone;
-
-    // Top wall
-    ctx.fillRect(px, py, w, wallThickness);
-    // Bottom wall with door gap
-    const doorWidth = tileSize * 0.6;
-    const doorX = px + (w - doorWidth) / 2;
-    ctx.fillRect(px, py + h - wallThickness, doorX - px, wallThickness);
-    ctx.fillRect(doorX + doorWidth, py + h - wallThickness, px + w - doorX - doorWidth, wallThickness);
-    // Left wall
-    ctx.fillRect(px, py, wallThickness, h);
-    // Right wall
-    ctx.fillRect(px + w - wallThickness, py, wallThickness, h);
-
-    // Wall shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
-    ctx.fillRect(px + wallThickness, py + wallThickness, w - wallThickness * 2, 2 * scale);
-    ctx.fillRect(px + wallThickness, py + wallThickness, 2 * scale, h - wallThickness * 2);
-
-    // Label
+    // Label above building
     ctx.fillStyle = '#ddd';
     ctx.font = `bold ${10 * scale}px Arial`;
     ctx.textAlign = 'center';
     ctx.fillText(building.name, px + w / 2, py - 5 * scale);
 }
 
-function drawHouseInterior(px, py, w, h, tileSize, scale) {
+function drawHouseInterior(px, py, w, h, tileSize, scale, building) {
     const offset = getOffset();
-    const numBeds = Math.min(villagers.length, 5);
-    const bedWidth = tileSize * 0.7;
-    const bedHeight = tileSize * 0.9;
+
+    // Interior starts 1 tile in from walls
+    const interiorX = px + tileSize;
+    const interiorY = py + tileSize;
+    const interiorW = w - 2 * tileSize;
+    const interiorH = h - 2 * tileSize;
+
+    // Floor board lines
+    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < building.w - 1; i++) {
+        ctx.beginPath();
+        ctx.moveTo(px + i * tileSize, interiorY);
+        ctx.lineTo(px + i * tileSize, interiorY + interiorH);
+        ctx.stroke();
+    }
 
     // Draw beds using getBedPosition() for accurate placement
+    const numBeds = Math.min(villagers.length, 5);
+    const bedWidth = tileSize * 0.8;
+    const bedHeight = tileSize * 0.7;
+
     for (let i = 0; i < numBeds; i++) {
         const bedPos = getBedPosition(i);
-        // Convert world coordinates to pixel coordinates
         const bedCenterX = offset.x + bedPos.x * tileSize;
         const bedCenterY = offset.y + bedPos.y * tileSize;
         const bedX = bedCenterX - bedWidth / 2;
@@ -321,14 +349,14 @@ function drawHouseInterior(px, py, w, h, tileSize, scale) {
 
         // Pillow
         ctx.fillStyle = COLORS.bedPillow;
-        ctx.fillRect(bedX + 3 * scale, bedY + 3 * scale, bedWidth - 6 * scale, bedHeight * 0.18);
+        ctx.fillRect(bedX + 3 * scale, bedY + 3 * scale, bedWidth - 6 * scale, bedHeight * 0.2);
     }
 
-    // Draw fireplace on right side, upper area
+    // Draw fireplace on right side, middle row
     const fireplacePos = HOUSE_POSITIONS.fireplace;
-    const fireplaceX = offset.x + fireplacePos.x * tileSize - tileSize * 0.45;
+    const fireplaceX = offset.x + fireplacePos.x * tileSize - tileSize * 0.4;
     const fireplaceY = offset.y + fireplacePos.y * tileSize - tileSize * 0.4;
-    const fireplaceW = tileSize * 0.9;
+    const fireplaceW = tileSize * 0.8;
     const fireplaceH = tileSize * 0.8;
 
     // Stone fireplace base
@@ -337,102 +365,94 @@ function drawHouseInterior(px, py, w, h, tileSize, scale) {
 
     // Fire opening
     ctx.fillStyle = '#2a1a1a';
-    ctx.fillRect(fireplaceX + 5 * scale, fireplaceY + 5 * scale, fireplaceW - 10 * scale, fireplaceH - 10 * scale);
+    ctx.fillRect(fireplaceX + 4 * scale, fireplaceY + 4 * scale, fireplaceW - 8 * scale, fireplaceH - 8 * scale);
 
     // Fire if lit
     if (gameStateRef && gameStateRef.fireplaceLit) {
-        // Glow
         ctx.fillStyle = 'rgba(255, 150, 50, 0.4)';
-        ctx.fillRect(fireplaceX + 8 * scale, fireplaceY + 10 * scale, fireplaceW - 16 * scale, fireplaceH - 15 * scale);
+        ctx.fillRect(fireplaceX + 6 * scale, fireplaceY + 8 * scale, fireplaceW - 12 * scale, fireplaceH - 12 * scale);
 
-        // Flames
         ctx.fillStyle = COLORS.fireOrange;
         for (let i = 0; i < 3; i++) {
             const flameX = fireplaceX + fireplaceW * 0.25 + i * fireplaceW * 0.25;
-            const flameY = fireplaceY + fireplaceH - 8 * scale;
+            const flameY = fireplaceY + fireplaceH - 6 * scale;
             ctx.beginPath();
             ctx.moveTo(flameX, flameY);
-            ctx.quadraticCurveTo(flameX - 3 * scale, flameY - 10 * scale, flameX, flameY - 15 * scale);
-            ctx.quadraticCurveTo(flameX + 3 * scale, flameY - 10 * scale, flameX, flameY);
+            ctx.quadraticCurveTo(flameX - 2 * scale, flameY - 8 * scale, flameX, flameY - 12 * scale);
+            ctx.quadraticCurveTo(flameX + 2 * scale, flameY - 8 * scale, flameX, flameY);
             ctx.fill();
         }
 
-        // Embers
         ctx.fillStyle = COLORS.ember;
-        ctx.fillRect(fireplaceX + 10 * scale, fireplaceY + fireplaceH - 12 * scale, fireplaceW - 20 * scale, 4 * scale);
+        ctx.fillRect(fireplaceX + 8 * scale, fireplaceY + fireplaceH - 10 * scale, fireplaceW - 16 * scale, 4 * scale);
     }
 
-    // Wood pile indicator next to fireplace
+    // Wood pile indicator
     if (gameStateRef && gameStateRef.fireplaceWood > 0) {
         ctx.fillStyle = COLORS.treeTrunk;
         const logs = Math.min(Math.ceil(gameStateRef.fireplaceWood / 2), 3);
         for (let i = 0; i < logs; i++) {
-            ctx.fillRect(fireplaceX - 15 * scale, fireplaceY + fireplaceH - 10 * scale - i * 6 * scale, 12 * scale, 5 * scale);
+            ctx.fillRect(fireplaceX - 12 * scale, fireplaceY + fireplaceH - 8 * scale - i * 5 * scale, 10 * scale, 4 * scale);
         }
     }
 
-    // Draw stove (kitchen area) - below fireplace
+    // Draw stove - bottom row, right side
     const stovePos = HOUSE_POSITIONS.stove;
-    const stoveX = offset.x + stovePos.x * tileSize - tileSize * 0.4;
+    const stoveX = offset.x + stovePos.x * tileSize - tileSize * 0.35;
     const stoveY = offset.y + stovePos.y * tileSize - tileSize * 0.35;
-    const stoveW = tileSize * 0.8;
+    const stoveW = tileSize * 0.7;
     const stoveH = tileSize * 0.7;
 
-    // Stove body
     ctx.fillStyle = COLORS.stoveMetal;
     ctx.fillRect(stoveX, stoveY, stoveW, stoveH);
 
-    // Stove top (darker)
     ctx.fillStyle = COLORS.stoveTop;
-    ctx.fillRect(stoveX + 3 * scale, stoveY + 3 * scale, stoveW - 6 * scale, stoveH * 0.4);
+    ctx.fillRect(stoveX + 2 * scale, stoveY + 2 * scale, stoveW - 4 * scale, stoveH * 0.4);
 
-    // Burner circles
     ctx.strokeStyle = '#2a2a2a';
-    ctx.lineWidth = 2 * scale;
+    ctx.lineWidth = 1.5 * scale;
     ctx.beginPath();
-    ctx.arc(stoveX + stoveW * 0.3, stoveY + stoveH * 0.25, 6 * scale, 0, Math.PI * 2);
+    ctx.arc(stoveX + stoveW * 0.3, stoveY + stoveH * 0.25, 4 * scale, 0, Math.PI * 2);
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(stoveX + stoveW * 0.7, stoveY + stoveH * 0.25, 6 * scale, 0, Math.PI * 2);
+    ctx.arc(stoveX + stoveW * 0.7, stoveY + stoveH * 0.25, 4 * scale, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Oven door
     ctx.fillStyle = '#3a3a3a';
-    ctx.fillRect(stoveX + 5 * scale, stoveY + stoveH * 0.5, stoveW - 10 * scale, stoveH * 0.4);
-    // Oven handle
+    ctx.fillRect(stoveX + 4 * scale, stoveY + stoveH * 0.5, stoveW - 8 * scale, stoveH * 0.4);
     ctx.fillStyle = '#6a6a6a';
-    ctx.fillRect(stoveX + stoveW * 0.3, stoveY + stoveH * 0.55, stoveW * 0.4, 3 * scale);
+    ctx.fillRect(stoveX + stoveW * 0.3, stoveY + stoveH * 0.55, stoveW * 0.4, 2 * scale);
 
-    // Draw knitting station - left side of house
+    // Draw knitting station - bottom row, left side
     const knittingPos = HOUSE_POSITIONS.knittingStation;
     const knittingX = offset.x + knittingPos.x * tileSize - tileSize * 0.3;
     const knittingY = offset.y + knittingPos.y * tileSize - tileSize * 0.35;
-    const knittingW = tileSize * 0.7;
+    const knittingW = tileSize * 0.6;
     const knittingH = tileSize * 0.7;
 
-    // Knitting chair/stool
+    // Chair/stool
     ctx.fillStyle = COLORS.bedFrame;
-    ctx.fillRect(knittingX, knittingY + knittingH * 0.3, knittingW, knittingH * 0.5);
+    ctx.fillRect(knittingX, knittingY + knittingH * 0.4, knittingW, knittingH * 0.5);
 
     // Yarn basket
     ctx.fillStyle = '#7a6a50';
     ctx.beginPath();
-    ctx.ellipse(knittingX + knittingW * 0.5, knittingY + knittingH * 0.15, knittingW * 0.35, knittingH * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(knittingX + knittingW * 0.5, knittingY + knittingH * 0.2, knittingW * 0.4, knittingH * 0.2, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Yarn balls in basket
+    // Yarn balls
     ctx.fillStyle = COLORS.yarn;
     ctx.beginPath();
-    ctx.arc(knittingX + knittingW * 0.35, knittingY + knittingH * 0.1, 5 * scale, 0, Math.PI * 2);
+    ctx.arc(knittingX + knittingW * 0.35, knittingY + knittingH * 0.15, 4 * scale, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#5070c4';
     ctx.beginPath();
-    ctx.arc(knittingX + knittingW * 0.6, knittingY + knittingH * 0.12, 4 * scale, 0, Math.PI * 2);
+    ctx.arc(knittingX + knittingW * 0.6, knittingY + knittingH * 0.18, 3 * scale, 0, Math.PI * 2);
     ctx.fill();
 
-    // Knitting needles
+    // Needles
     ctx.strokeStyle = COLORS.needles;
-    ctx.lineWidth = 2 * scale;
+    ctx.lineWidth = 1.5 * scale;
     ctx.beginPath();
     ctx.moveTo(knittingX + knittingW * 0.2, knittingY);
     ctx.lineTo(knittingX + knittingW * 0.5, knittingY + knittingH * 0.3);
@@ -443,40 +463,46 @@ function drawHouseInterior(px, py, w, h, tileSize, scale) {
     ctx.stroke();
 }
 
-function drawStorageInterior(px, py, w, h, tileSize, scale) {
+function drawStorageInterior(px, py, w, h, tileSize, scale, building) {
+    // Interior area (inside walls)
+    const interiorX = px + tileSize;
+    const interiorY = py + tileSize;
+    const interiorW = w - 2 * tileSize;
+    const interiorH = h - 2 * tileSize;
+
     // Zone markings
     ctx.fillStyle = COLORS.storageZone;
-    ctx.fillRect(px + 6 * scale, py + 6 * scale, w - 12 * scale, h - 12 * scale);
+    ctx.fillRect(interiorX + 4 * scale, interiorY + 4 * scale, interiorW - 8 * scale, interiorH - 8 * scale);
 
-    // Corner markers
+    // Corner markers (relative to interior)
     ctx.strokeStyle = '#8a8a6a';
     ctx.lineWidth = 2 * scale;
-    const cornerSize = 6 * scale;
-    const margin = 8 * scale;
+    const cornerSize = 5 * scale;
+    const margin = 6 * scale;
 
-    // Draw corners
-    [[margin, margin], [w - margin, margin], [margin, h - margin], [w - margin, h - margin]].forEach(([cx, cy], i) => {
+    // Draw corners in interior
+    [[margin, margin], [interiorW - margin, margin], [margin, interiorH - margin], [interiorW - margin, interiorH - margin]].forEach(([cx, cy], i) => {
         ctx.beginPath();
         const xDir = i % 2 === 0 ? 1 : -1;
         const yDir = i < 2 ? 1 : -1;
-        ctx.moveTo(px + cx, py + cy + yDir * cornerSize);
-        ctx.lineTo(px + cx, py + cy);
-        ctx.lineTo(px + cx + xDir * cornerSize, py + cy);
+        ctx.moveTo(interiorX + cx, interiorY + cy + yDir * cornerSize);
+        ctx.lineTo(interiorX + cx, interiorY + cy);
+        ctx.lineTo(interiorX + cx + xDir * cornerSize, interiorY + cy);
         ctx.stroke();
     });
 
-    // Draw stored items as organized piles
-    let itemY = py + margin + 5 * scale;
-    const itemSize = 12 * scale;
-    const itemSpacing = 3 * scale;
+    // Draw stored items as organized piles (inside interior)
+    let itemY = interiorY + margin + 3 * scale;
+    const itemSize = 10 * scale;
+    const itemSpacing = 2 * scale;
 
     // Wheat (yellow sacks)
     if (gameStateRef && gameStateRef.storedWheat > 0) {
-        const numSacks = Math.min(Math.ceil(gameStateRef.storedWheat / 3), 4);
+        const numSacks = Math.min(Math.ceil(gameStateRef.storedWheat / 3), 3);
         for (let i = 0; i < numSacks; i++) {
             ctx.fillStyle = '#c4a030';
             ctx.beginPath();
-            ctx.ellipse(px + margin + 10 * scale + i * (itemSize + itemSpacing), itemY + itemSize / 2, itemSize / 2, itemSize / 2 * 0.8, 0, 0, Math.PI * 2);
+            ctx.ellipse(interiorX + margin + 8 * scale + i * (itemSize + itemSpacing), itemY + itemSize / 2, itemSize / 2, itemSize / 2 * 0.8, 0, 0, Math.PI * 2);
             ctx.fill();
         }
         itemY += itemSize + itemSpacing;
@@ -484,11 +510,11 @@ function drawStorageInterior(px, py, w, h, tileSize, scale) {
 
     // Flour (white sacks)
     if (gameStateRef && gameStateRef.storedFlour > 0) {
-        const numSacks = Math.min(gameStateRef.storedFlour, 4);
+        const numSacks = Math.min(gameStateRef.storedFlour, 3);
         for (let i = 0; i < numSacks; i++) {
             ctx.fillStyle = '#e8e0d0';
             ctx.beginPath();
-            ctx.ellipse(px + margin + 10 * scale + i * (itemSize + itemSpacing), itemY + itemSize / 2, itemSize / 2, itemSize / 2 * 0.8, 0, 0, Math.PI * 2);
+            ctx.ellipse(interiorX + margin + 8 * scale + i * (itemSize + itemSpacing), itemY + itemSize / 2, itemSize / 2, itemSize / 2 * 0.8, 0, 0, Math.PI * 2);
             ctx.fill();
         }
         itemY += itemSize + itemSpacing;
@@ -496,53 +522,53 @@ function drawStorageInterior(px, py, w, h, tileSize, scale) {
 
     // Bread (brown loaves)
     if (gameStateRef && gameStateRef.storedBread > 0) {
-        const numLoaves = Math.min(gameStateRef.storedBread, 4);
+        const numLoaves = Math.min(gameStateRef.storedBread, 3);
         for (let i = 0; i < numLoaves; i++) {
             ctx.fillStyle = '#a08040';
             ctx.beginPath();
-            ctx.ellipse(px + margin + 10 * scale + i * (itemSize + itemSpacing), itemY + itemSize / 3, itemSize / 2, itemSize / 3, 0, 0, Math.PI * 2);
+            ctx.ellipse(interiorX + margin + 8 * scale + i * (itemSize + itemSpacing), itemY + itemSize / 3, itemSize / 2, itemSize / 3, 0, 0, Math.PI * 2);
             ctx.fill();
         }
         itemY += itemSize + itemSpacing;
     }
 
-    // Wood (brown logs)
+    // Wood (brown logs) - right side
     if (gameStateRef && gameStateRef.storedWood > 0) {
-        const numLogs = Math.min(gameStateRef.storedWood, 5);
+        const numLogs = Math.min(gameStateRef.storedWood, 4);
         ctx.fillStyle = COLORS.treeTrunk;
         for (let i = 0; i < numLogs; i++) {
-            ctx.fillRect(px + w - margin - 20 * scale, py + margin + i * 8 * scale, 15 * scale, 6 * scale);
+            ctx.fillRect(interiorX + interiorW - 18 * scale, interiorY + margin + i * 6 * scale, 12 * scale, 5 * scale);
         }
     }
 
-    // Wool (fluffy white)
+    // Wool (fluffy white) - right side bottom
     if (gameStateRef && gameStateRef.storedWool > 0) {
-        const numWool = Math.min(gameStateRef.storedWool, 4);
+        const numWool = Math.min(gameStateRef.storedWool, 3);
         ctx.fillStyle = COLORS.sheepBody;
         for (let i = 0; i < numWool; i++) {
             ctx.beginPath();
-            ctx.arc(px + w - margin - 10 * scale, py + h - margin - 15 * scale - i * 12 * scale, 6 * scale, 0, Math.PI * 2);
+            ctx.arc(interiorX + interiorW - 10 * scale, interiorY + interiorH - 10 * scale - i * 10 * scale, 5 * scale, 0, Math.PI * 2);
             ctx.fill();
         }
     }
 
-    // Sweaters (colored rectangles)
+    // Sweaters (colored rectangles) - center bottom
     if (gameStateRef && gameStateRef.storedSweaters > 0) {
         const numSweaters = Math.min(gameStateRef.storedSweaters, 3);
         for (let i = 0; i < numSweaters; i++) {
             ctx.fillStyle = ['#8a4a4a', '#4a8a4a', '#4a4a8a'][i % 3];
-            ctx.fillRect(px + w / 2 - 8 * scale + i * 5 * scale, py + h - margin - 20 * scale, 10 * scale, 12 * scale);
+            ctx.fillRect(interiorX + interiorW / 2 - 6 * scale + i * 4 * scale, interiorY + interiorH - 16 * scale, 8 * scale, 10 * scale);
         }
     }
 
-    // Fish (blue-ish)
+    // Fish (blue-ish) - left side bottom
     if (gameStateRef && (gameStateRef.storedFish > 0 || gameStateRef.storedCookedFish > 0)) {
         const totalFish = (gameStateRef.storedFish || 0) + (gameStateRef.storedCookedFish || 0);
         ctx.fillStyle = gameStateRef.storedCookedFish > 0 ? '#a08060' : '#6a8aaa';
         const numFish = Math.min(totalFish, 3);
         for (let i = 0; i < numFish; i++) {
             ctx.beginPath();
-            ctx.ellipse(px + margin + 10 * scale, py + h - margin - 10 * scale - i * 10 * scale, 8 * scale, 4 * scale, 0, 0, Math.PI * 2);
+            ctx.ellipse(interiorX + margin + 8 * scale, interiorY + interiorH - 8 * scale - i * 8 * scale, 6 * scale, 3 * scale, 0, 0, Math.PI * 2);
             ctx.fill();
         }
     }
@@ -614,14 +640,19 @@ function drawWell(px, py, w, h, tileSize, scale) {
     ctx.fillText('Well', centerX, py - 5 * scale);
 }
 
-function drawMillInterior(px, py, w, h, tileSize, scale) {
-    const centerX = px + w / 2;
-    const centerY = py + h / 2;
+function drawMillInterior(px, py, w, h, tileSize, scale, building) {
+    // Interior center (inside walls)
+    const interiorX = px + tileSize;
+    const interiorY = py + tileSize;
+    const interiorW = w - 2 * tileSize;
+    const interiorH = h - 2 * tileSize;
+    const centerX = interiorX + interiorW / 2;
+    const centerY = interiorY + interiorH / 2;
 
     // Millstone base
     ctx.fillStyle = '#5a5a5a';
     ctx.beginPath();
-    ctx.arc(centerX, centerY, tileSize * 0.8, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, tileSize * 0.7, 0, Math.PI * 2);
     ctx.fill();
 
     // Grooves
@@ -630,21 +661,21 @@ function drawMillInterior(px, py, w, h, tileSize, scale) {
     for (let i = 0; i < 8; i++) {
         const angle = (i / 8) * Math.PI * 2;
         ctx.beginPath();
-        ctx.moveTo(centerX + Math.cos(angle) * tileSize * 0.2, centerY + Math.sin(angle) * tileSize * 0.2);
-        ctx.lineTo(centerX + Math.cos(angle) * tileSize * 0.75, centerY + Math.sin(angle) * tileSize * 0.75);
+        ctx.moveTo(centerX + Math.cos(angle) * tileSize * 0.15, centerY + Math.sin(angle) * tileSize * 0.15);
+        ctx.lineTo(centerX + Math.cos(angle) * tileSize * 0.65, centerY + Math.sin(angle) * tileSize * 0.65);
         ctx.stroke();
     }
 
     // Upper stone
     ctx.fillStyle = '#6a6a6a';
     ctx.beginPath();
-    ctx.arc(centerX, centerY - 4 * scale, tileSize * 0.6, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY - 3 * scale, tileSize * 0.5, 0, Math.PI * 2);
     ctx.fill();
 
     // Pivot
     ctx.fillStyle = '#4a4a4a';
     ctx.beginPath();
-    ctx.arc(centerX, centerY - 4 * scale, tileSize * 0.15, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY - 3 * scale, tileSize * 0.12, 0, Math.PI * 2);
     ctx.fill();
 
     // Handle
@@ -707,25 +738,55 @@ function drawSheep(sheep) {
     const px = offset.x + sheep.x * tileSize;
     const py = offset.y + sheep.y * tileSize;
 
-    // Body
-    ctx.fillStyle = sheep.hasWool ? COLORS.sheepBody : '#aaaaaa';
-    ctx.beginPath();
-    ctx.ellipse(px, py, 12 * scale, 8 * scale, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Wool texture if has wool
     if (sheep.hasWool) {
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
-        for (let i = 0; i < 5; i++) {
+        // Fluffy woolly sheep - full body with wool
+        ctx.fillStyle = COLORS.sheepBody;
+        ctx.beginPath();
+        ctx.ellipse(px, py, 12 * scale, 8 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Wool texture - fluffy puffs
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        for (let i = 0; i < 6; i++) {
             const wx = px - 8 * scale + seededRandom(sheep.id, i, 0) * 16 * scale;
             const wy = py - 4 * scale + seededRandom(sheep.id, i, 1) * 8 * scale;
             ctx.beginPath();
             ctx.arc(wx, wy, 3 * scale, 0, Math.PI * 2);
             ctx.fill();
         }
+
+        // Extra fluffy outline
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 2 * scale;
+        ctx.beginPath();
+        ctx.ellipse(px, py, 13 * scale, 9 * scale, 0, 0, Math.PI * 2);
+        ctx.stroke();
+    } else {
+        // Sheared sheep - smaller, pink/tan body visible
+        // Pink skin body (smaller without wool)
+        ctx.fillStyle = '#e8c8b8'; // Pink/tan skin color
+        ctx.beginPath();
+        ctx.ellipse(px, py, 9 * scale, 6 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Subtle skin texture/shading
+        ctx.fillStyle = 'rgba(200, 150, 130, 0.3)';
+        ctx.beginPath();
+        ctx.ellipse(px + 2 * scale, py + 1 * scale, 7 * scale, 4 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Very short stubble (tiny dots)
+        ctx.fillStyle = 'rgba(230, 230, 220, 0.5)';
+        for (let i = 0; i < 8; i++) {
+            const sx = px - 6 * scale + seededRandom(sheep.id, i, 10) * 12 * scale;
+            const sy = py - 4 * scale + seededRandom(sheep.id, i, 11) * 8 * scale;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 1 * scale, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
 
-    // Head
+    // Head (same for both)
     ctx.fillStyle = COLORS.sheepFace;
     ctx.beginPath();
     ctx.ellipse(px + 10 * scale, py, 5 * scale, 4 * scale, 0, 0, Math.PI * 2);
@@ -737,11 +798,12 @@ function drawSheep(sheep) {
     ctx.ellipse(px + 8 * scale, py + 5 * scale, 3 * scale, 2 * scale, 0.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Legs
+    // Legs (thinner for sheared sheep)
     ctx.fillStyle = COLORS.sheepFace;
-    ctx.fillRect(px - 8 * scale, py + 6 * scale, 3 * scale, 6 * scale);
-    ctx.fillRect(px - 2 * scale, py + 6 * scale, 3 * scale, 6 * scale);
-    ctx.fillRect(px + 4 * scale, py + 6 * scale, 3 * scale, 6 * scale);
+    const legWidth = sheep.hasWool ? 3 * scale : 2.5 * scale;
+    ctx.fillRect(px - 8 * scale, py + 6 * scale, legWidth, 6 * scale);
+    ctx.fillRect(px - 2 * scale, py + 6 * scale, legWidth, 6 * scale);
+    ctx.fillRect(px + 4 * scale, py + 6 * scale, legWidth, 6 * scale);
 }
 
 function drawField(field) {

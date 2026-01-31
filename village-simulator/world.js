@@ -62,9 +62,9 @@ export function generateWorld() {
             const y = LOCATIONS.pasture.y + dy;
             // Mark fence edges
             if (dy === 0 || dy === LOCATIONS.pasture.h - 1 || dx === 0 || dx === LOCATIONS.pasture.w - 1) {
-                // Gate at bottom center
-                if (dy === LOCATIONS.pasture.h - 1 && dx >= 1 && dx <= 2) {
-                    world.terrain[y][x] = TERRAIN_TYPES.GRASS;
+                // Gate at bottom center (using GATE type so it's walkable)
+                if (y === LOCATIONS.pasture.gateY && x === LOCATIONS.pasture.gateX) {
+                    world.terrain[y][x] = TERRAIN_TYPES.GATE;
                 } else {
                     world.terrain[y][x] = TERRAIN_TYPES.FENCE;
                 }
@@ -72,13 +72,40 @@ export function generateWorld() {
         }
     }
 
-    // Add buildings
+    // Add buildings with walls as full tiles
     world.buildings = [
         { ...LOCATIONS.house, type: 'house', name: 'House' },
         { ...LOCATIONS.storage, type: 'storage', name: 'Storage' },
         { ...LOCATIONS.well, type: 'well', name: 'Well' },
         { ...LOCATIONS.mill, type: 'mill', name: 'Mill' }
     ];
+
+    // Create wall and floor tiles for buildings
+    world.buildings.forEach(building => {
+        if (building.type === 'well') return; // Well has no walls
+
+        for (let dy = 0; dy < building.h; dy++) {
+            for (let dx = 0; dx < building.w; dx++) {
+                const x = building.x + dx;
+                const y = building.y + dy;
+                if (y < 0 || y >= world.height || x < 0 || x >= world.width) continue;
+
+                // Check if this is the door position
+                const isDoor = building.doorX === x && building.doorY === y;
+
+                // Edge tiles are walls (except door)
+                const isEdge = dy === 0 || dy === building.h - 1 || dx === 0 || dx === building.w - 1;
+
+                if (isDoor) {
+                    world.terrain[y][x] = TERRAIN_TYPES.DOOR;
+                } else if (isEdge) {
+                    world.terrain[y][x] = TERRAIN_TYPES.WALL;
+                } else {
+                    world.terrain[y][x] = TERRAIN_TYPES.FLOOR;
+                }
+            }
+        }
+    });
 
     // Initialize fields with crops (only 2 fields now)
     world.fields = [];
@@ -163,60 +190,21 @@ export function isInsideBuilding(x, y, building) {
            y >= building.y && y < building.y + building.h;
 }
 
-// Check if position is blocked by walls (for pathfinding)
+// Check if position is blocked (wall, fence, or out of bounds)
 export function isBlockedByWall(x, y) {
-    for (const building of world.buildings) {
-        if (building.type === 'well') continue; // Well has no walls
-
-        const bx = building.x;
-        const by = building.y;
-        const bw = building.w;
-        const bh = building.h;
-
-        // Check if inside building bounds
-        if (x >= bx && x < bx + bw && y >= by && y < by + bh) {
-            // Inside building - that's OK
-            continue;
-        }
-
-        // Check if trying to cross walls (not through door)
-        const wallThickness = 0.15;
-
-        // Door position (bottom center)
-        const doorX = bx + bw / 2;
-        const doorWidth = 0.6;
-
-        // Top wall
-        if (y >= by - wallThickness && y < by + wallThickness &&
-            x >= bx && x < bx + bw) {
-            return true;
-        }
-        // Bottom wall (with door gap)
-        if (y >= by + bh - wallThickness && y < by + bh + wallThickness &&
-            x >= bx && x < bx + bw) {
-            if (Math.abs(x - doorX) > doorWidth / 2) {
-                return true;
-            }
-        }
-        // Left wall
-        if (x >= bx - wallThickness && x < bx + wallThickness &&
-            y >= by && y < by + bh) {
-            return true;
-        }
-        // Right wall
-        if (x >= bx + bw - wallThickness && x < bx + bw + wallThickness &&
-            y >= by && y < by + bh) {
-            return true;
-        }
-    }
-
-    // Check fence
     const tileX = Math.floor(x);
     const tileY = Math.floor(y);
-    if (tileY >= 0 && tileY < world.height && tileX >= 0 && tileX < world.width) {
-        if (world.terrain[tileY][tileX] === TERRAIN_TYPES.FENCE) {
-            return true;
-        }
+
+    // Out of bounds
+    if (tileY < 0 || tileY >= world.height || tileX < 0 || tileX >= world.width) {
+        return true;
+    }
+
+    const terrain = world.terrain[tileY][tileX];
+
+    // Wall and fence tiles block movement
+    if (terrain === TERRAIN_TYPES.WALL || terrain === TERRAIN_TYPES.FENCE) {
+        return true;
     }
 
     return false;
