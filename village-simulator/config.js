@@ -72,18 +72,18 @@ export const LOCATIONS = {
     // House with fireplace, stove, and knitting area
     // Outer dimensions include walls. Interior is (w-2) x (h-2)
     // World is 24 wide x 18 tall (tiles 0-23 x 0-17)
-    // IMPORTANT: doorX/doorY must be on an edge tile, and ideally centered
-    house: { x: 3, y: 2, w: 7, h: 5, doorX: 6, doorY: 6 }, // Bottom edge, x=6 is center-ish (range 3-9)
-    storage: { x: 14, y: 2, w: 4, h: 4, doorX: 15, doorY: 5 }, // Bottom edge, x=15 is left-center (range 14-17)
-    well: { x: 11, y: 7, w: 2, h: 2 }, // No walls
-    mill: { x: 0, y: 4, w: 4, h: 4, doorX: 1, doorY: 7 }, // Bottom edge, x=1 is left-center (range 0-3)
+    // Door positions: doorX/doorY is the tile coordinate of the door on the wall
+    house: { x: 3, y: 2, w: 7, h: 5, doorX: 6, doorY: 6 }, // Bottom wall at y=6, door at x=6
+    storage: { x: 14, y: 2, w: 5, h: 5, doorX: 16, doorY: 6 }, // Bottom wall at y=6, door at x=16 (center)
+    well: { x: 11, y: 8, w: 2, h: 2 }, // No walls
+    mill: { x: 0, y: 4, w: 4, h: 4, doorX: 2, doorY: 7 }, // Bottom wall at y=7, door at x=2
     // Fields
-    field1: { x: 5, y: 11, w: 5, h: 4 },
-    field2: { x: 11, y: 11, w: 5, h: 4 },
+    field1: { x: 5, y: 12, w: 5, h: 4 },
+    field2: { x: 11, y: 12, w: 5, h: 4 },
     // Forest area for trees (top-right, within bounds)
     forest: { x: 20, y: 0, w: 4, h: 4 },
     // Sheep pasture with fence
-    pasture: { x: 18, y: 11, w: 5, h: 5, gateX: 20, gateY: 15 },
+    pasture: { x: 17, y: 12, w: 5, h: 5, gateX: 19, gateY: 16 },
     // Fishing pond
     pond: { x: 0, y: 0, w: 3, h: 3 }
 };
@@ -97,30 +97,31 @@ export const DOOR_POSITIONS = {
 };
 
 // Bed positions within house (in tile coordinates)
-// House interior starts at x+1, y+1 and is (w-2) x (h-2) = 5x3
+// House at (3,2) w=7, h=5: interior x:4-8, y:3-5
+// Layout: Beds on bottom row (y=5), workstations on top row (y=3)
 export function getBedPosition(villagerIndex) {
-    const interiorX = LOCATIONS.house.x + 1; // Skip wall
-    const interiorY = LOCATIONS.house.y + 1; // Skip wall
-    const interiorW = LOCATIONS.house.w - 2; // Interior width
+    const interiorX = LOCATIONS.house.x + 1; // = 4
+    const interiorY = LOCATIONS.house.y + LOCATIONS.house.h - 2; // Bottom row of interior = 5
+    const interiorW = LOCATIONS.house.w - 2; // = 5
 
-    // 5 beds spread across the top row of interior
+    // 5 beds spread across the bottom row of interior (y=5)
     const numBeds = 5;
-    const spacing = interiorW / numBeds;
+    const spacing = interiorW / numBeds; // = 1
     const bedX = interiorX + spacing * villagerIndex + spacing / 2;
-    const bedY = interiorY + 0.5; // Top row of interior
+    const bedY = interiorY + 0.5;
     return { x: bedX, y: bedY };
 }
 
 // Interior positions within house (all inside the walls)
-// House interior: x from house.x+1 to house.x+w-2, y from house.y+1 to house.y+h-2
-// For house at (3,2) with w=7, h=5: interior x:4-8, interior y:3-5
+// House at (3,2) w=7, h=5: interior x:4-8, y:3-5
+// Top row (y=3): fireplace, stove, knitting station
 export const HOUSE_POSITIONS = {
-    // Fireplace on right side of interior, middle
+    // Fireplace on right side, top row
     fireplace: { x: LOCATIONS.house.x + LOCATIONS.house.w - 2.5, y: LOCATIONS.house.y + 1.5 },
-    // Stove in the middle-right area
-    stove: { x: LOCATIONS.house.x + LOCATIONS.house.w - 2.5, y: LOCATIONS.house.y + 2.5 },
-    // Knitting station on left side of interior
-    knittingStation: { x: LOCATIONS.house.x + 1.5, y: LOCATIONS.house.y + 2.5 }
+    // Stove in center-right, top row
+    stove: { x: LOCATIONS.house.x + LOCATIONS.house.w - 3.5, y: LOCATIONS.house.y + 1.5 },
+    // Knitting station on left side, top row
+    knittingStation: { x: LOCATIONS.house.x + 1.5, y: LOCATIONS.house.y + 1.5 }
 };
 
 // Villager roles (for educational purposes - students assign different trees to each)
