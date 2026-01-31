@@ -20,11 +20,14 @@ export const villagers = [
         y: 8,
         targetX: null,
         targetY: null,
-        targetField: null, // Track which field the villager is targeting
+        targetField: null,
         energy: 100,
+        hunger: 100, // New: hunger level (100 = full, 0 = starving)
         inventory: 0,
+        inventoryType: null, // 'wheat', 'flour', or null
         state: "idle",
         currentAction: null,
+        actionProgress: 0, // For timed actions like grinding/baking
         behaviorTree: null,
         treeState: null
     },
@@ -39,9 +42,12 @@ export const villagers = [
         targetY: null,
         targetField: null,
         energy: 100,
+        hunger: 100,
         inventory: 0,
+        inventoryType: null,
         state: "idle",
         currentAction: null,
+        actionProgress: 0,
         behaviorTree: null,
         treeState: null
     },
@@ -56,9 +62,12 @@ export const villagers = [
         targetY: null,
         targetField: null,
         energy: 100,
+        hunger: 100,
         inventory: 0,
+        inventoryType: null,
         state: "idle",
         currentAction: null,
+        actionProgress: 0,
         behaviorTree: null,
         treeState: null
     }
@@ -69,6 +78,14 @@ let gameStateRef = null;
 
 export function setGameStateRef(gs) {
     gameStateRef = gs;
+}
+
+// Helper to check if villager is inside a building
+function isInsideBuilding(villager, location) {
+    return villager.x >= location.x &&
+           villager.x <= location.x + location.w &&
+           villager.y >= location.y &&
+           villager.y <= location.y + location.h;
 }
 
 // Condition factory functions
@@ -82,12 +99,19 @@ export const CONDITIONS = {
         return time >= CONFIG.NIGHT_END && time < CONFIG.NIGHT_START;
     },
     isTired: (v) => v.energy < 30,
+    isHungry: (v) => v.hunger < CONFIG.HUNGER_THRESHOLD,
     hasItems: (v) => v.inventory > 0,
+    hasWheat: (v) => v.inventory > 0 && v.inventoryType === 'wheat',
+    hasFlour: (v) => v.inventory > 0 && v.inventoryType === 'flour',
     cropsReady: (v) => world.fields.some(f => f.state === 'ready'),
     fieldEmpty: (v) => world.fields.some(f => f.state === 'empty'),
     needsWater: (v) => world.fields.some(f =>
         (f.state === 'planted' || f.state === 'growing') && !f.isWatered
-    )
+    ),
+    // Storage checks
+    storageHasWheat: (v) => gameStateRef.storedWheat >= CONFIG.WHEAT_PER_FLOUR,
+    storageHasFlour: (v) => gameStateRef.storedFlour >= CONFIG.FLOUR_PER_BREAD,
+    storageHasBread: (v) => gameStateRef.storedBread > 0
 };
 
 // Create a movement action to a target location
@@ -108,7 +132,12 @@ function createGoToAction(targetGetter) {
             return NodeStatus.SUCCESS;
         }
 
-        const speed = 0.08;
+        // Slower if very hungry
+        let speed = 0.08;
+        if (villager.hunger < 20) {
+            speed = 0.04;
+        }
+
         villager.x += (dx / dist) * speed;
         villager.y += (dy / dist) * speed;
         villager.state = 'walking';
@@ -121,7 +150,6 @@ function createGoToAction(targetGetter) {
 // Action factory functions
 export const ACTIONS = {
     goToField: createGoToAction((villager) => {
-        // Find nearest field that needs attention (empty or ready) and not targeted by others
         let field = findFieldNeedingAttention(villager, 'ready', villagers);
         if (!field) {
             field = findFieldNeedingAttention(villager, 'empty', villagers);
@@ -130,7 +158,6 @@ export const ACTIONS = {
             villager.targetField = field;
             return { x: field.x + 0.5, y: field.y + 0.5 };
         }
-        // Fallback: go to any field
         const anyField = world.fields[0];
         return anyField ? { x: anyField.x + 0.5, y: anyField.y + 0.5 } : null;
     }),
@@ -145,19 +172,31 @@ export const ACTIONS = {
         return null;
     }),
 
-    goToHouse: createGoToAction(() => ({
-        x: LOCATIONS.house.x + LOCATIONS.house.w / 2,
-        y: LOCATIONS.house.y + LOCATIONS.house.h
-    })),
+    goToHouse: createGoToAction((villager) => {
+        const bedSpacing = LOCATIONS.house.w / 4;
+        const bedX = LOCATIONS.house.x + bedSpacing * (villager.id + 1);
+        const bedY = LOCATIONS.house.y + LOCATIONS.house.h * 0.5;
+        return { x: bedX, y: bedY };
+    }),
 
     goToStorage: createGoToAction(() => ({
         x: LOCATIONS.storage.x + LOCATIONS.storage.w / 2,
-        y: LOCATIONS.storage.y + LOCATIONS.storage.h
+        y: LOCATIONS.storage.y + LOCATIONS.storage.h / 2
     })),
 
     goToWell: createGoToAction(() => ({
         x: LOCATIONS.well.x + LOCATIONS.well.w / 2,
         y: LOCATIONS.well.y + LOCATIONS.well.h
+    })),
+
+    goToMill: createGoToAction(() => ({
+        x: LOCATIONS.mill.x + LOCATIONS.mill.w / 2,
+        y: LOCATIONS.mill.y + LOCATIONS.mill.h / 2
+    })),
+
+    goToKitchen: createGoToAction(() => ({
+        x: LOCATIONS.kitchen.x + LOCATIONS.kitchen.w / 2,
+        y: LOCATIONS.kitchen.y + LOCATIONS.kitchen.h / 2
     })),
 
     plantCrops: (villager) => {
@@ -172,7 +211,6 @@ export const ACTIONS = {
             return NodeStatus.FAILURE;
         }
 
-        // Change to planted state (needs watering to grow)
         nearbyField.state = 'planted';
         nearbyField.growthTimer = CONFIG.CROP_GROW_TIME;
         nearbyField.isWatered = false;
@@ -199,6 +237,7 @@ export const ACTIONS = {
         nearbyField.isWatered = false;
         nearbyField.waterTimer = 0;
         villager.inventory++;
+        villager.inventoryType = 'wheat';
         gameStateRef.totalHarvested++;
         villager.state = 'harvesting';
         villager.energy -= CONFIG.ENERGY_DRAIN * 10;
@@ -208,7 +247,6 @@ export const ACTIONS = {
     },
 
     waterCrops: (villager) => {
-        // Find nearby field that needs water
         const nearbyField = world.fields.find(f =>
             (f.state === 'planted' || f.state === 'growing') &&
             !f.isWatered &&
@@ -222,11 +260,9 @@ export const ACTIONS = {
             return NodeStatus.FAILURE;
         }
 
-        // Water the field - this starts/continues growth
         nearbyField.isWatered = true;
         nearbyField.waterTimer = CONFIG.WATER_DURATION;
 
-        // If just planted, change to growing
         if (nearbyField.state === 'planted') {
             nearbyField.state = 'growing';
         }
@@ -240,22 +276,111 @@ export const ACTIONS = {
     },
 
     storeItems: (villager) => {
-        const dist = Math.sqrt(
-            Math.pow(villager.x - world.storage.x, 2) +
-            Math.pow(villager.y - world.storage.y, 2)
-        );
-
-        if (dist > 3) return NodeStatus.FAILURE;
+        if (!isInsideBuilding(villager, LOCATIONS.storage)) return NodeStatus.FAILURE;
         if (villager.inventory <= 0) return NodeStatus.FAILURE;
 
-        gameStateRef.storedCrops += villager.inventory;
+        // Store based on inventory type
+        if (villager.inventoryType === 'wheat') {
+            gameStateRef.storedWheat += villager.inventory;
+        } else if (villager.inventoryType === 'flour') {
+            gameStateRef.storedFlour += villager.inventory;
+        }
+
         villager.inventory = 0;
+        villager.inventoryType = null;
         villager.state = 'storing';
 
         return NodeStatus.SUCCESS;
     },
 
+    // Pick up wheat from storage to take to mill
+    pickupWheat: (villager) => {
+        if (!isInsideBuilding(villager, LOCATIONS.storage)) return NodeStatus.FAILURE;
+        if (gameStateRef.storedWheat < CONFIG.WHEAT_PER_FLOUR) return NodeStatus.FAILURE;
+        if (villager.inventory > 0) return NodeStatus.FAILURE; // Already carrying something
+
+        gameStateRef.storedWheat -= CONFIG.WHEAT_PER_FLOUR;
+        villager.inventory = CONFIG.WHEAT_PER_FLOUR;
+        villager.inventoryType = 'wheat';
+        villager.state = 'pickup';
+
+        return NodeStatus.SUCCESS;
+    },
+
+    // Pick up flour from storage to take to kitchen
+    pickupFlour: (villager) => {
+        if (!isInsideBuilding(villager, LOCATIONS.storage)) return NodeStatus.FAILURE;
+        if (gameStateRef.storedFlour < CONFIG.FLOUR_PER_BREAD) return NodeStatus.FAILURE;
+        if (villager.inventory > 0) return NodeStatus.FAILURE;
+
+        gameStateRef.storedFlour -= CONFIG.FLOUR_PER_BREAD;
+        villager.inventory = CONFIG.FLOUR_PER_BREAD;
+        villager.inventoryType = 'flour';
+        villager.state = 'pickup';
+
+        return NodeStatus.SUCCESS;
+    },
+
+    // Grind wheat into flour at the mill
+    grindWheat: (villager) => {
+        if (!isInsideBuilding(villager, LOCATIONS.mill)) return NodeStatus.FAILURE;
+        if (villager.inventoryType !== 'wheat' || villager.inventory < CONFIG.WHEAT_PER_FLOUR) {
+            return NodeStatus.FAILURE;
+        }
+
+        villager.state = 'grinding';
+
+        // Timed action
+        villager.actionProgress++;
+        if (villager.actionProgress >= CONFIG.GRIND_TIME) {
+            villager.inventory = 1; // Produces 1 flour
+            villager.inventoryType = 'flour';
+            villager.actionProgress = 0;
+            villager.energy -= CONFIG.ENERGY_DRAIN * 15;
+            return NodeStatus.SUCCESS;
+        }
+
+        return NodeStatus.RUNNING;
+    },
+
+    // Bake flour into bread at the kitchen
+    bakeBread: (villager) => {
+        if (!isInsideBuilding(villager, LOCATIONS.kitchen)) return NodeStatus.FAILURE;
+        if (villager.inventoryType !== 'flour' || villager.inventory < CONFIG.FLOUR_PER_BREAD) {
+            return NodeStatus.FAILURE;
+        }
+
+        villager.state = 'baking';
+
+        // Timed action
+        villager.actionProgress++;
+        if (villager.actionProgress >= CONFIG.BAKE_TIME) {
+            villager.inventory = 0;
+            villager.inventoryType = null;
+            gameStateRef.storedBread++; // Bread goes directly to storage count
+            villager.actionProgress = 0;
+            villager.energy -= CONFIG.ENERGY_DRAIN * 10;
+            return NodeStatus.SUCCESS;
+        }
+
+        return NodeStatus.RUNNING;
+    },
+
+    // Eat bread to restore hunger
+    eatBread: (villager) => {
+        if (!isInsideBuilding(villager, LOCATIONS.storage)) return NodeStatus.FAILURE;
+        if (gameStateRef.storedBread <= 0) return NodeStatus.FAILURE;
+
+        gameStateRef.storedBread--;
+        villager.hunger = Math.min(100, villager.hunger + CONFIG.HUNGER_RESTORE);
+        villager.state = 'eating';
+
+        return NodeStatus.SUCCESS;
+    },
+
     sleep: (villager) => {
+        if (!isInsideBuilding(villager, LOCATIONS.house)) return NodeStatus.FAILURE;
+
         villager.state = 'sleeping';
         villager.energy = Math.min(100, villager.energy + CONFIG.ENERGY_RESTORE);
 
@@ -289,37 +414,60 @@ export function createNode(type, subtype) {
 // Create the default behavior tree for a villager
 export function createDefaultTree() {
     return new SelectorNode([
-        // Sleep at night
+        // 1. Sleep at night
         new SequenceNode([
             new ConditionNode('isNight', '🌙 Is Night?', CONDITIONS.isNight),
             new ActionNode('goToHouse', '🏠 Go to House', ACTIONS.goToHouse),
             new ActionNode('sleep', '😴 Sleep', ACTIONS.sleep)
         ]),
-        // Rest if tired
+        // 2. Eat if hungry (highest day priority)
+        new SequenceNode([
+            new ConditionNode('isHungry', '🍽️ Is Hungry?', CONDITIONS.isHungry),
+            new ConditionNode('storageHasBread', '🍞 Has Bread?', CONDITIONS.storageHasBread),
+            new ActionNode('goToStorage', '📦 Go to Storage', ACTIONS.goToStorage),
+            new ActionNode('eatBread', '🍞 Eat Bread', ACTIONS.eatBread)
+        ]),
+        // 3. Rest if tired
         new SequenceNode([
             new ConditionNode('isTired', '😴 Is Tired?', CONDITIONS.isTired),
             new ActionNode('rest', '☕ Rest', ACTIONS.rest)
         ]),
-        // Store items if has any
+        // 4. Store items if carrying any
         new SequenceNode([
             new ConditionNode('hasItems', '🎒 Has Items?', CONDITIONS.hasItems),
             new ActionNode('goToStorage', '📦 Go to Storage', ACTIONS.goToStorage),
             new ActionNode('storeItems', '📥 Store Items', ACTIONS.storeItems)
         ]),
-        // Harvest if ready
+        // 5. Bake bread if we have flour
+        new SequenceNode([
+            new ConditionNode('storageHasFlour', '🌾 Has Flour?', CONDITIONS.storageHasFlour),
+            new ActionNode('goToStorage', '📦 Go to Storage', ACTIONS.goToStorage),
+            new ActionNode('pickupFlour', '📤 Pickup Flour', ACTIONS.pickupFlour),
+            new ActionNode('goToKitchen', '🍳 Go to Kitchen', ACTIONS.goToKitchen),
+            new ActionNode('bakeBread', '🍞 Bake Bread', ACTIONS.bakeBread)
+        ]),
+        // 6. Grind wheat if we have wheat
+        new SequenceNode([
+            new ConditionNode('storageHasWheat', '🌾 Has Wheat?', CONDITIONS.storageHasWheat),
+            new ActionNode('goToStorage', '📦 Go to Storage', ACTIONS.goToStorage),
+            new ActionNode('pickupWheat', '📤 Pickup Wheat', ACTIONS.pickupWheat),
+            new ActionNode('goToMill', '🏭 Go to Mill', ACTIONS.goToMill),
+            new ActionNode('grindWheat', '⚙️ Grind Wheat', ACTIONS.grindWheat)
+        ]),
+        // 7. Harvest if ready
         new SequenceNode([
             new ConditionNode('cropsReady', '🌾 Crops Ready?', CONDITIONS.cropsReady),
             new ActionNode('goToField', '🚶 Go to Field', ACTIONS.goToField),
             new ActionNode('harvestCrops', '🌾 Harvest', ACTIONS.harvestCrops)
         ]),
-        // Water crops that need it
+        // 8. Water crops that need it
         new SequenceNode([
             new ConditionNode('needsWater', '💧 Needs Water?', CONDITIONS.needsWater),
             new ActionNode('goToWell', '💧 Go to Well', ACTIONS.goToWell),
             new ActionNode('goToFieldForWatering', '🚶 Go to Field', ACTIONS.goToFieldForWatering),
             new ActionNode('waterCrops', '💧 Water Crops', ACTIONS.waterCrops)
         ]),
-        // Plant if empty
+        // 9. Plant if empty
         new SequenceNode([
             new ConditionNode('fieldEmpty', '🟫 Field Empty?', CONDITIONS.fieldEmpty),
             new ActionNode('goToField', '🚶 Go to Field', ACTIONS.goToField),
@@ -336,10 +484,13 @@ export function resetVillagers() {
 
     villagers.forEach(v => {
         v.energy = 100;
+        v.hunger = 100;
         v.inventory = 0;
+        v.inventoryType = null;
         v.state = 'idle';
         v.targetField = null;
         v.currentAction = null;
+        v.actionProgress = 0;
         if (v.behaviorTree) v.behaviorTree.reset();
     });
 }
@@ -355,5 +506,8 @@ export function updateVillagers() {
         if (villager.state !== 'sleeping' && villager.state !== 'resting') {
             villager.energy = Math.max(0, villager.energy - CONFIG.ENERGY_DRAIN * 0.1);
         }
+
+        // Natural hunger drain (always, even when sleeping)
+        villager.hunger = Math.max(0, villager.hunger - CONFIG.HUNGER_DRAIN);
     });
 }

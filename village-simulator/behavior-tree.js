@@ -121,22 +121,38 @@ export class ActionNode extends BehaviorNode {
 export const NODE_NAMES = {
     selector: '❓ Selector',
     sequence: '➡️ Sequence',
+    // Conditions
     isNight: '🌙 Is Night?',
     isDay: '☀️ Is Day?',
     isTired: '😴 Is Tired?',
+    isHungry: '🍽️ Is Hungry?',
     hasItems: '🎒 Has Items?',
+    hasWheat: '🌾 Has Wheat?',
+    hasFlour: '🥛 Has Flour?',
     cropsReady: '🌾 Crops Ready?',
     fieldEmpty: '🟫 Field Empty?',
     needsWater: '💧 Needs Water?',
+    storageHasWheat: '📦🌾 Storage Has Wheat?',
+    storageHasFlour: '📦🥛 Storage Has Flour?',
+    storageHasBread: '📦🍞 Storage Has Bread?',
+    // Movement actions
     goToField: '🚶 Go to Field',
     goToFieldForWatering: '🚶 Go to Field (Water)',
     goToHouse: '🏠 Go to House',
     goToStorage: '📦 Go to Storage',
     goToWell: '💧 Go to Well',
+    goToMill: '🏭 Go to Mill',
+    goToKitchen: '🍳 Go to Kitchen',
+    // Work actions
     plantCrops: '🌱 Plant Crops',
     harvestCrops: '🌾 Harvest',
     waterCrops: '💧 Water Crops',
     storeItems: '📥 Store Items',
+    pickupWheat: '📤 Pickup Wheat',
+    pickupFlour: '📤 Pickup Flour',
+    grindWheat: '⚙️ Grind Wheat',
+    bakeBread: '🍞 Bake Bread',
+    eatBread: '🍞 Eat Bread',
     sleep: '😴 Sleep',
     rest: '☕ Rest'
 };

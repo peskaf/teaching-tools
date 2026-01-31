@@ -11,7 +11,13 @@ export const gameState = {
     time: 6 * 60, // Start at 6:00 AM
     day: 1,
     totalHarvested: 0,
-    storedCrops: 0
+    // Resources
+    storedWheat: 0,   // Raw wheat from harvest
+    storedFlour: 0,   // Processed from wheat at mill
+    storedBread: 0,   // Baked from flour at kitchen
+    // Legacy alias for compatibility
+    get storedCrops() { return this.storedWheat; },
+    set storedCrops(v) { this.storedWheat = v; }
 };
 
 let lastTick = 0;
@@ -30,7 +36,9 @@ export function resetSimulation() {
     gameState.time = 6 * 60;
     gameState.day = 1;
     gameState.totalHarvested = 0;
-    gameState.storedCrops = 0;
+    gameState.storedWheat = 0;
+    gameState.storedFlour = 0;
+    gameState.storedBread = 0;
 
     // Reset villagers
     resetVillagers();

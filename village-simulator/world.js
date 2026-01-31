@@ -35,7 +35,9 @@ export function generateWorld() {
     world.buildings = [
         { ...LOCATIONS.house, type: 'house', name: 'House' },
         { ...LOCATIONS.storage, type: 'storage', name: 'Storage' },
-        { ...LOCATIONS.well, type: 'well', name: 'Well' }
+        { ...LOCATIONS.well, type: 'well', name: 'Well' },
+        { ...LOCATIONS.mill, type: 'mill', name: 'Mill' },
+        { ...LOCATIONS.kitchen, type: 'kitchen', name: 'Kitchen' }
     ];
 
     // Initialize fields with crops
