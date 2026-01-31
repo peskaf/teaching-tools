@@ -150,12 +150,40 @@ export function setGameStateRef(gs) {
     gameStateRef = gs;
 }
 
-// Helper to check if villager is inside a building
+// Helper to check if villager is inside a building (within the walls, not on them)
 function isInsideBuilding(villager, location) {
-    return villager.x >= location.x &&
-           villager.x <= location.x + location.w &&
-           villager.y >= location.y &&
-           villager.y <= location.y + location.h;
+    // Interior is 1 tile inside the walls on all sides
+    // So interior x: from x+1 to x+w-2 (inclusive)
+    // Interior y: from y+1 to y+h-2 (inclusive)
+    return villager.x >= location.x + 1 &&
+           villager.x <= location.x + location.w - 2 &&
+           villager.y >= location.y + 1 &&
+           villager.y <= location.y + location.h - 2;
+}
+
+// Check if a target is inside a specific building/fenced area
+function targetIsInBuilding(target, location) {
+    return target.x >= location.x + 1 &&
+           target.x <= location.x + location.w - 2 &&
+           target.y >= location.y + 1 &&
+           target.y <= location.y + location.h - 2;
+}
+
+// Find which building/fenced area (if any) contains the target
+function findBuildingForTarget(target) {
+    const buildings = [
+        { loc: LOCATIONS.house, door: DOOR_POSITIONS.house },
+        { loc: LOCATIONS.storage, door: DOOR_POSITIONS.storage },
+        { loc: LOCATIONS.mill, door: DOOR_POSITIONS.mill },
+        { loc: LOCATIONS.pasture, door: DOOR_POSITIONS.pasture }
+    ];
+
+    for (const b of buildings) {
+        if (targetIsInBuilding(target, b.loc)) {
+            return b;
+        }
+    }
+    return null;
 }
 
 // Helper to check if villager is near a location
@@ -241,15 +269,23 @@ export const CONDITIONS = {
     storageHasCookedFish: (v) => gameStateRef.storedCookedFish > 0
 };
 
-// Create a movement action to a target location with door-aware pathfinding
+// Create a movement action to a target location with simple tile-based pathfinding
 function createGoToAction(targetGetter) {
     return (villager) => {
-        const target = targetGetter(villager);
-        if (!target) {
+        const finalTarget = targetGetter(villager);
+        if (!finalTarget) {
             villager.targetField = null;
             villager.targetTree = null;
             villager.targetSheep = null;
             return NodeStatus.FAILURE;
+        }
+
+        // Determine actual target - if target is in a building and we're outside, go to door first
+        let target = finalTarget;
+        const building = findBuildingForTarget(finalTarget);
+        if (building && !isInsideBuilding(villager, building.loc)) {
+            // Target is inside a building, but we're outside - go to door first
+            target = building.door;
         }
 
         const dx = target.x - villager.x;
@@ -257,6 +293,10 @@ function createGoToAction(targetGetter) {
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist < 0.3) {
+            // If we reached intermediate target (door), continue to final target
+            if (target !== finalTarget) {
+                return NodeStatus.RUNNING;
+            }
             villager.state = 'idle';
             return NodeStatus.SUCCESS;
         }
@@ -271,22 +311,40 @@ function createGoToAction(targetGetter) {
         let nextX = villager.x + (dx / dist) * speed;
         let nextY = villager.y + (dy / dist) * speed;
 
-        // Check for wall collision
+        // Check for wall collision - try to navigate around
         if (isBlockedByWall(nextX, nextY)) {
-            // Try to find a path around - go to door first if entering/exiting building
-            // Simple approach: move along axis that isn't blocked
-            const testX = villager.x + (dx / dist) * speed;
-            const testY = villager.y;
-            if (!isBlockedByWall(testX, villager.y)) {
+            // Try moving only along X axis
+            const testX = villager.x + (dx > 0 ? speed : (dx < 0 ? -speed : 0));
+            if (testX !== villager.x && !isBlockedByWall(testX, villager.y)) {
                 nextX = testX;
                 nextY = villager.y;
             } else {
-                nextX = villager.x;
-                nextY = villager.y + (dy / dist) * speed;
-                if (isBlockedByWall(nextX, nextY)) {
-                    // Still blocked, try going around
-                    nextX = villager.x + speed * (Math.random() > 0.5 ? 1 : -1);
-                    nextY = villager.y;
+                // Try moving only along Y axis
+                const testY = villager.y + (dy > 0 ? speed : (dy < 0 ? -speed : 0));
+                if (testY !== villager.y && !isBlockedByWall(villager.x, testY)) {
+                    nextX = villager.x;
+                    nextY = testY;
+                } else {
+                    // Completely blocked - try perpendicular direction to get around obstacle
+                    const perpDirs = [
+                        { x: speed, y: 0 },
+                        { x: -speed, y: 0 },
+                        { x: 0, y: speed },
+                        { x: 0, y: -speed }
+                    ];
+                    let moved = false;
+                    for (const dir of perpDirs) {
+                        if (!isBlockedByWall(villager.x + dir.x, villager.y + dir.y)) {
+                            nextX = villager.x + dir.x;
+                            nextY = villager.y + dir.y;
+                            moved = true;
+                            break;
+                        }
+                    }
+                    if (!moved) {
+                        // Completely stuck
+                        return NodeStatus.RUNNING;
+                    }
                 }
             }
         }
@@ -326,68 +384,30 @@ export const ACTIONS = {
     }),
 
     goToHouse: createGoToAction((villager) => {
-        // Go to door first, then to bed
-        const doorPos = DOOR_POSITIONS.house;
-        const bedPos = getBedPosition(villager.id);
-
-        // If outside house, go to door
-        if (!isInsideBuilding(villager, LOCATIONS.house)) {
-            return { x: doorPos.x, y: doorPos.y };
-        }
-        // Inside house, go to bed
-        return bedPos;
+        // Go to bed position (door is on the path, villager will walk through it)
+        return getBedPosition(villager.id);
     }),
 
-    goToFireplace: createGoToAction((villager) => {
-        // Go to door first if outside
-        if (!isInsideBuilding(villager, LOCATIONS.house)) {
-            return DOOR_POSITIONS.house;
-        }
-        return HOUSE_POSITIONS.fireplace;
-    }),
+    goToFireplace: createGoToAction(() => HOUSE_POSITIONS.fireplace),
 
-    goToStove: createGoToAction((villager) => {
-        // Go to door first if outside
-        if (!isInsideBuilding(villager, LOCATIONS.house)) {
-            return DOOR_POSITIONS.house;
-        }
-        return HOUSE_POSITIONS.stove;
-    }),
+    goToStove: createGoToAction(() => HOUSE_POSITIONS.stove),
 
-    goToKnittingStation: createGoToAction((villager) => {
-        // Go to door first if outside
-        if (!isInsideBuilding(villager, LOCATIONS.house)) {
-            return DOOR_POSITIONS.house;
-        }
-        return HOUSE_POSITIONS.knittingStation;
-    }),
+    goToKnittingStation: createGoToAction(() => HOUSE_POSITIONS.knittingStation),
 
-    goToStorage: createGoToAction((villager) => {
-        // Go to door first if outside
-        if (!isInsideBuilding(villager, LOCATIONS.storage)) {
-            return DOOR_POSITIONS.storage;
-        }
-        return {
-            x: LOCATIONS.storage.x + LOCATIONS.storage.w / 2,
-            y: LOCATIONS.storage.y + LOCATIONS.storage.h / 2
-        };
-    }),
+    goToStorage: createGoToAction(() => ({
+        x: LOCATIONS.storage.x + LOCATIONS.storage.w / 2,
+        y: LOCATIONS.storage.y + LOCATIONS.storage.h / 2
+    })),
 
     goToWell: createGoToAction(() => ({
         x: LOCATIONS.well.x + LOCATIONS.well.w / 2,
         y: LOCATIONS.well.y + LOCATIONS.well.h
     })),
 
-    goToMill: createGoToAction((villager) => {
-        // Go to door first if outside
-        if (!isInsideBuilding(villager, LOCATIONS.mill)) {
-            return DOOR_POSITIONS.mill;
-        }
-        return {
-            x: LOCATIONS.mill.x + LOCATIONS.mill.w / 2,
-            y: LOCATIONS.mill.y + LOCATIONS.mill.h / 2
-        };
-    }),
+    goToMill: createGoToAction(() => ({
+        x: LOCATIONS.mill.x + LOCATIONS.mill.w / 2,
+        y: LOCATIONS.mill.y + LOCATIONS.mill.h / 2
+    })),
 
     goToForest: createGoToAction((villager) => {
         const tree = findTreeToChop(villager, villagers);

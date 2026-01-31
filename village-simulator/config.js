@@ -62,49 +62,61 @@ export const TERRAIN_TYPES = {
     FLOOR: 5,
     FOREST: 6,
     POND: 7,
-    FENCE: 8
+    FENCE: 8,
+    WALL: 9,
+    DOOR: 10,
+    GATE: 11  // Fence gate (walkable)
 };
 
 export const LOCATIONS = {
     // House with fireplace, stove, and knitting area
-    house: { x: 4, y: 3, w: 6, h: 4, doorSide: 'bottom' },
-    storage: { x: 17, y: 4, w: 3, h: 3, doorSide: 'bottom' },
-    well: { x: 11, y: 5, w: 2, h: 2 },
-    mill: { x: 1, y: 5, w: 3, h: 3, doorSide: 'bottom' },
+    // Outer dimensions include walls. Interior is (w-2) x (h-2)
+    house: { x: 3, y: 2, w: 7, h: 5, doorX: 6, doorY: 6 }, // Door at bottom, x=6
+    storage: { x: 17, y: 3, w: 4, h: 4, doorX: 18, doorY: 6 },
+    well: { x: 11, y: 5, w: 2, h: 2 }, // No walls
+    mill: { x: 0, y: 4, w: 4, h: 4, doorX: 2, doorY: 7 },
     // Fields (only 2 now, pasture replaces one)
     field1: { x: 5, y: 11, w: 5, h: 4 },
     field2: { x: 12, y: 11, w: 5, h: 4 },
     // Forest area for trees
     forest: { x: 19, y: 1, w: 4, h: 5 },
     // Sheep pasture with fence (replaces field3)
-    pasture: { x: 19, y: 11, w: 4, h: 4 },
+    pasture: { x: 19, y: 11, w: 4, h: 4, gateX: 20, gateY: 14 },
     // Fishing pond - larger and better positioned
     pond: { x: 12, y: 1, w: 4, h: 3 }
 };
 
-// Door positions for pathfinding (tile coordinates of door entrance)
+// Door positions for pathfinding (tile coordinates of door - these are walkable tiles)
 export const DOOR_POSITIONS = {
-    house: { x: LOCATIONS.house.x + LOCATIONS.house.w / 2, y: LOCATIONS.house.y + LOCATIONS.house.h },
-    storage: { x: LOCATIONS.storage.x + LOCATIONS.storage.w / 2, y: LOCATIONS.storage.y + LOCATIONS.storage.h },
-    mill: { x: LOCATIONS.mill.x + LOCATIONS.mill.w / 2, y: LOCATIONS.mill.y + LOCATIONS.mill.h }
+    house: { x: LOCATIONS.house.doorX + 0.5, y: LOCATIONS.house.doorY + 0.5 },
+    storage: { x: LOCATIONS.storage.doorX + 0.5, y: LOCATIONS.storage.doorY + 0.5 },
+    mill: { x: LOCATIONS.mill.doorX + 0.5, y: LOCATIONS.mill.doorY + 0.5 },
+    pasture: { x: LOCATIONS.pasture.gateX + 0.5, y: LOCATIONS.pasture.gateY + 0.5 }
 };
 
-// Bed positions within house (in tile coordinates relative to house origin)
+// Bed positions within house (in tile coordinates)
+// House interior starts at x+1, y+1 and is (w-2) x (h-2) = 5x3
 export function getBedPosition(villagerIndex) {
+    const interiorX = LOCATIONS.house.x + 1; // Skip wall
+    const interiorY = LOCATIONS.house.y + 1; // Skip wall
+    const interiorW = LOCATIONS.house.w - 2; // Interior width
+
+    // 5 beds spread across the top row of interior
     const numBeds = 5;
-    const bedWidth = 0.7;
-    const totalBedsWidth = numBeds * bedWidth;
-    const spacing = (LOCATIONS.house.w - totalBedsWidth - 0.5) / (numBeds + 1); // -0.5 for wall margin
-    const bedX = LOCATIONS.house.x + 0.3 + spacing + villagerIndex * (bedWidth + spacing) + bedWidth / 2;
-    const bedY = LOCATIONS.house.y + 1.0; // Second row in house
+    const spacing = interiorW / numBeds;
+    const bedX = interiorX + spacing * villagerIndex + spacing / 2;
+    const bedY = interiorY + 0.5; // Top row of interior
     return { x: bedX, y: bedY };
 }
 
-// Interior positions within house
+// Interior positions within house (all inside the walls)
 export const HOUSE_POSITIONS = {
-    fireplace: { x: LOCATIONS.house.x + LOCATIONS.house.w - 1.2, y: LOCATIONS.house.y + 1.5 },
-    stove: { x: LOCATIONS.house.x + LOCATIONS.house.w - 1.2, y: LOCATIONS.house.y + 2.8 },
-    knittingStation: { x: LOCATIONS.house.x + 1, y: LOCATIONS.house.y + 2.8 }
+    // Fireplace on right side, middle row
+    fireplace: { x: LOCATIONS.house.x + LOCATIONS.house.w - 1.5, y: LOCATIONS.house.y + 2.5 },
+    // Stove next to fireplace, bottom row
+    stove: { x: LOCATIONS.house.x + LOCATIONS.house.w - 1.5, y: LOCATIONS.house.y + 3.5 },
+    // Knitting station on left side, bottom row
+    knittingStation: { x: LOCATIONS.house.x + 1.5, y: LOCATIONS.house.y + 3.5 }
 };
 
 // Villager roles (for educational purposes - students assign different trees to each)
