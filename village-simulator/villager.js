@@ -155,20 +155,19 @@ export function setGameStateRef(gs) {
     gameStateRef = gs;
 }
 
-// Helper to check if villager is inside a building or on its door (able to proceed to interior)
+// Helper to check if villager is truly inside a building's interior (not just at door)
 function isInsideBuilding(villager, location) {
     // Interior is 1 tile inside the walls on all sides
     // So interior x: from x+1 to x+w-2 (inclusive)
     // Interior y: from y+1 to y+h-2 (inclusive)
-    const inInterior = villager.x >= location.x + 1 &&
-                       villager.x <= location.x + location.w - 2 &&
-                       villager.y >= location.y + 1 &&
-                       villager.y <= location.y + location.h - 2;
+    return villager.x >= location.x + 1 &&
+           villager.x <= location.x + location.w - 2 &&
+           villager.y >= location.y + 1 &&
+           villager.y <= location.y + location.h - 2;
+}
 
-    if (inInterior) return true;
-
-    // Also check if villager is on/near the door tile (within 0.8 tiles of door center)
-    // This allows villagers to pass through the door without getting stuck
+// Helper to check if villager is at or near a door/gate
+function isAtDoor(villager, location) {
     if (location.doorX !== undefined) {
         const doorCenterX = location.doorX + 0.5;
         const doorCenterY = location.doorY + 0.5;
@@ -176,9 +175,8 @@ function isInsideBuilding(villager, location) {
             Math.pow(villager.x - doorCenterX, 2) +
             Math.pow(villager.y - doorCenterY, 2)
         );
-        if (distToDoor < 0.8) return true;
+        if (distToDoor < 0.6) return true;
     }
-    // Check for gate (pasture)
     if (location.gateX !== undefined) {
         const gateCenterX = location.gateX + 0.5;
         const gateCenterY = location.gateY + 0.5;
@@ -186,9 +184,8 @@ function isInsideBuilding(villager, location) {
             Math.pow(villager.x - gateCenterX, 2) +
             Math.pow(villager.y - gateCenterY, 2)
         );
-        if (distToGate < 0.8) return true;
+        if (distToGate < 0.6) return true;
     }
-
     return false;
 }
 
@@ -363,6 +360,30 @@ function canMoveTo(fromX, fromY, toX, toY) {
     return true;
 }
 
+// Get the "just inside" position from a door (one step into the building)
+function getInsideDoorPosition(building) {
+    const loc = building.loc;
+    const doorX = loc.doorX !== undefined ? loc.doorX : loc.gateX;
+    const doorY = loc.doorY !== undefined ? loc.doorY : loc.gateY;
+
+    // Determine which edge the door is on and return position just inside
+    if (doorY === loc.y) {
+        // Door on top edge - inside is below
+        return { x: doorX + 0.5, y: doorY + 1.5 };
+    } else if (doorY === loc.y + loc.h - 1) {
+        // Door on bottom edge - inside is above
+        return { x: doorX + 0.5, y: doorY - 0.5 };
+    } else if (doorX === loc.x) {
+        // Door on left edge - inside is to the right
+        return { x: doorX + 1.5, y: doorY + 0.5 };
+    } else if (doorX === loc.x + loc.w - 1) {
+        // Door on right edge - inside is to the left
+        return { x: doorX - 0.5, y: doorY + 0.5 };
+    }
+    // Default: assume bottom door
+    return { x: doorX + 0.5, y: doorY - 0.5 };
+}
+
 // Create a movement action to a target location with simple tile-based pathfinding
 function createGoToAction(targetGetter) {
     return (villager) => {
@@ -378,16 +399,18 @@ function createGoToAction(targetGetter) {
         let target = finalTarget;
         const building = findBuildingForTarget(finalTarget);
         if (building && !isInsideBuilding(villager, building.loc)) {
-            // Check if villager is already at the door (close enough to pass through)
             const doorDx = building.door.x - villager.x;
             const doorDy = building.door.y - villager.y;
             const doorDist = Math.sqrt(doorDx * doorDx + doorDy * doorDy);
 
             if (doorDist >= 0.5) {
-                // Target is inside a building, but we're outside and not at door - go to door first
+                // Not at door yet - go to door first
                 target = building.door;
+            } else {
+                // At the door - need to step inside first before going to final target
+                // This prevents trying to move diagonally through walls
+                target = getInsideDoorPosition(building);
             }
-            // Otherwise, villager is at/near door, proceed directly to final target
         }
 
         const dx = target.x - villager.x;
