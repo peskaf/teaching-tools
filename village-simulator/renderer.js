@@ -1,7 +1,6 @@
 import { CONFIG, TERRAIN_TYPES } from './config.js';
 import { world } from './world.js';
 import { villagers } from './villager.js';
-import { gameState } from './game.js';
 
 let canvas, ctx;
 let gameStateRef = null;

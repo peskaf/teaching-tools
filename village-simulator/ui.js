@@ -1,15 +1,25 @@
-import { gameState, toggleSimulation, resetSimulation, setSpeed } from './game.js';
 import { world } from './world.js';
-import { villagers, createNode, createDefaultTree, CONDITIONS, ACTIONS } from './villager.js';
+import { villagers, createNode } from './villager.js';
 import {
     SelectorNode,
-    NODE_NAMES,
     findNodeById,
     findParentNode
 } from './behavior-tree.js';
 
 let selectedVillager = 0;
 let selectedNodeId = null;
+let gameStateRef = null;
+let gameControlsRef = null;
+
+// Set game state reference (called from game.js)
+export function setUIGameState(gs) {
+    gameStateRef = gs;
+}
+
+// Set game controls reference (called from game.js)
+export function setUIGameControls(controls) {
+    gameControlsRef = controls;
+}
 
 // Initialize UI event handlers
 export function initUI() {
@@ -29,7 +39,9 @@ export function initUI() {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            setSpeed(parseInt(btn.dataset.speed));
+            if (gameControlsRef) {
+                gameControlsRef.setSpeed(parseInt(btn.dataset.speed));
+            }
         });
     });
 
@@ -52,8 +64,8 @@ export function initUI() {
     });
 
     // Make control functions available globally for onclick handlers
-    window.toggleSimulation = toggleSimulation;
-    window.resetSimulation = resetSimulation;
+    window.toggleSimulation = () => gameControlsRef && gameControlsRef.toggle();
+    window.resetSimulation = () => gameControlsRef && gameControlsRef.reset();
     window.selectNode = selectNode;
     window.deleteNode = deleteNode;
 
@@ -62,16 +74,20 @@ export function initUI() {
 
 // Update time display
 export function updateTimeDisplay() {
-    const hours = Math.floor(gameState.time / 60);
-    const minutes = gameState.time % 60;
+    if (!gameStateRef) return;
+
+    const hours = Math.floor(gameStateRef.time / 60);
+    const minutes = gameStateRef.time % 60;
     const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
-    document.querySelector('.time-display .day').textContent = `Day ${gameState.day}`;
+    document.querySelector('.time-display .day').textContent = `Day ${gameStateRef.day}`;
     document.querySelector('.time-display .time').textContent = timeStr;
 }
 
 // Update status panel
 export function updateStatusPanel() {
+    if (!gameStateRef) return;
+
     // Villager statuses
     let statusHtml = '';
     villagers.forEach(v => {
@@ -98,10 +114,10 @@ export function updateStatusPanel() {
     document.getElementById('villagerStatuses').innerHTML = statusHtml;
 
     // World stats
-    document.getElementById('statStorage').textContent = gameState.storedCrops;
+    document.getElementById('statStorage').textContent = gameStateRef.storedCrops;
     document.getElementById('statPlanted').textContent = world.fields.filter(f => f.state !== 'empty').length;
-    document.getElementById('statHarvested').textContent = gameState.totalHarvested;
-    document.getElementById('statDays').textContent = gameState.day;
+    document.getElementById('statHarvested').textContent = gameStateRef.totalHarvested;
+    document.getElementById('statDays').textContent = gameStateRef.day;
 }
 
 // Get icon for node type
