@@ -371,27 +371,28 @@ function getOutsideDoorPosition(building) {
 }
 
 // Get the "just inside" position from a door (one step into the building)
+// ALL POSITIONS USE TILE CENTERS: tileX + 0.5, tileY + 0.5
 function getInsideDoorPosition(building) {
     const loc = building.loc;
     const doorX = loc.doorX !== undefined ? loc.doorX : loc.gateX;
     const doorY = loc.doorY !== undefined ? loc.doorY : loc.gateY;
 
-    // Determine which edge the door is on and return position just inside
+    // Determine which edge the door is on and return CENTER of tile just inside
     if (doorY === loc.y) {
-        // Door on top edge - inside is below
-        return { x: doorX + 0.5, y: doorY + 1.5 };
+        // Door on top edge - inside tile is (doorX, doorY+1)
+        return { x: doorX + 0.5, y: (doorY + 1) + 0.5 };
     } else if (doorY === loc.y + loc.h - 1) {
-        // Door on bottom edge - inside is above
-        return { x: doorX + 0.5, y: doorY - 0.5 };
+        // Door on bottom edge - inside tile is (doorX, doorY-1)
+        return { x: doorX + 0.5, y: (doorY - 1) + 0.5 };
     } else if (doorX === loc.x) {
-        // Door on left edge - inside is to the right
-        return { x: doorX + 1.5, y: doorY + 0.5 };
+        // Door on left edge - inside tile is (doorX+1, doorY)
+        return { x: (doorX + 1) + 0.5, y: doorY + 0.5 };
     } else if (doorX === loc.x + loc.w - 1) {
-        // Door on right edge - inside is to the left
-        return { x: doorX - 0.5, y: doorY + 0.5 };
+        // Door on right edge - inside tile is (doorX-1, doorY)
+        return { x: (doorX - 1) + 0.5, y: doorY + 0.5 };
     }
-    // Default: assume bottom door
-    return { x: doorX + 0.5, y: doorY - 0.5 };
+    // Default: assume bottom door - inside tile is (doorX, doorY-1)
+    return { x: doorX + 0.5, y: (doorY - 1) + 0.5 };
 }
 
 // Create a movement action to a target location with simple tile-based pathfinding
@@ -563,43 +564,47 @@ export const ACTIONS = {
 
     goToKnittingStation: createGoToAction(() => HOUSE_POSITIONS.knittingStation),
 
-    goToStorage: createGoToAction(() => ({
-        // Target interior center (1 tile inside walls on all sides)
-        x: LOCATIONS.storage.x + 1 + (LOCATIONS.storage.w - 2) / 2,
-        y: LOCATIONS.storage.y + 1 + (LOCATIONS.storage.h - 2) / 2
-    })),
+    goToStorage: createGoToAction(() => {
+        // Target center interior tile - use tile center (tileX + 0.5, tileY + 0.5)
+        const interiorTileX = LOCATIONS.storage.x + Math.floor(LOCATIONS.storage.w / 2);
+        const interiorTileY = LOCATIONS.storage.y + Math.floor(LOCATIONS.storage.h / 2);
+        return { x: interiorTileX + 0.5, y: interiorTileY + 0.5 };
+    }),
 
-    goToWell: createGoToAction(() => ({
-        x: LOCATIONS.well.x + LOCATIONS.well.w / 2,
-        y: LOCATIONS.well.y + LOCATIONS.well.h
-    })),
+    goToWell: createGoToAction(() => {
+        // Well has no walls, target center tile + 0.5
+        const tileX = LOCATIONS.well.x + Math.floor(LOCATIONS.well.w / 2);
+        const tileY = LOCATIONS.well.y + LOCATIONS.well.h; // Just below well
+        return { x: tileX + 0.5, y: tileY + 0.5 };
+    }),
 
-    goToMill: createGoToAction(() => ({
-        // Target interior center (1 tile inside walls on all sides)
-        x: LOCATIONS.mill.x + 1 + (LOCATIONS.mill.w - 2) / 2,
-        y: LOCATIONS.mill.y + 1 + (LOCATIONS.mill.h - 2) / 2
-    })),
+    goToMill: createGoToAction(() => {
+        // Target center interior tile - use tile center (tileX + 0.5, tileY + 0.5)
+        const interiorTileX = LOCATIONS.mill.x + Math.floor(LOCATIONS.mill.w / 2);
+        const interiorTileY = LOCATIONS.mill.y + Math.floor(LOCATIONS.mill.h / 2);
+        return { x: interiorTileX + 0.5, y: interiorTileY + 0.5 };
+    }),
 
     goToForest: createGoToAction((villager) => {
         const tree = findTreeToChop(villager, villagers);
         if (tree) {
             villager.targetTree = tree;
-            return { x: tree.x, y: tree.y };
+            return { x: tree.x, y: tree.y }; // Trees already use tile centers
         }
-        return { x: LOCATIONS.forest.x + 1, y: LOCATIONS.forest.y + 1 };
+        // Default: center of first forest tile
+        return { x: LOCATIONS.forest.x + 0.5, y: LOCATIONS.forest.y + 0.5 };
     }),
 
     goToPasture: createGoToAction((villager) => {
         const sheep = findSheepToShear(villager, villagers);
         if (sheep) {
             villager.targetSheep = sheep;
-            return { x: sheep.x, y: sheep.y };
+            return { x: sheep.x, y: sheep.y }; // Sheep already use tile centers
         }
-        // Go through gate
-        return {
-            x: LOCATIONS.pasture.x + 1.5,
-            y: LOCATIONS.pasture.y + LOCATIONS.pasture.h
-        };
+        // Go to center of tile just inside gate
+        const gateTileX = LOCATIONS.pasture.gateX;
+        const gateTileY = LOCATIONS.pasture.gateY - 1; // One tile inside
+        return { x: gateTileX + 0.5, y: gateTileY + 0.5 };
     }),
 
     goToPond: createGoToAction(() => ({
