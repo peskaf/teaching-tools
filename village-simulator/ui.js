@@ -91,6 +91,9 @@ export function updateStatusPanel() {
     // Villager statuses
     let statusHtml = '';
     villagers.forEach(v => {
+        const inventoryIcon = v.inventoryType === 'wheat' ? '🌾' :
+                             v.inventoryType === 'flour' ? '🥛' :
+                             v.inventoryType === 'bread' ? '🍞' : '📦';
         statusHtml += `
             <div class="villager-status">
                 <h4>${v.emoji} ${v.name}</h4>
@@ -105,8 +108,15 @@ export function updateStatusPanel() {
                 <div class="status-bar">
                     <div class="status-bar-fill energy" style="width: ${v.energy}%"></div>
                 </div>
+                <div class="status-row">
+                    <span>Hunger:</span>
+                    <span>${Math.round(v.hunger)}%</span>
+                </div>
+                <div class="status-bar">
+                    <div class="status-bar-fill hunger" style="width: ${v.hunger}%"></div>
+                </div>
                 <div class="inventory-display">
-                    ${v.inventory > 0 ? `<span class="inventory-item">🌾 ×${v.inventory}</span>` : '<span class="inventory-item">Empty</span>'}
+                    ${v.inventory > 0 ? `<span class="inventory-item">${inventoryIcon} ×${v.inventory}</span>` : '<span class="inventory-item">Empty</span>'}
                 </div>
             </div>
         `;
@@ -114,7 +124,9 @@ export function updateStatusPanel() {
     document.getElementById('villagerStatuses').innerHTML = statusHtml;
 
     // World stats
-    document.getElementById('statStorage').textContent = gameStateRef.storedCrops;
+    document.getElementById('statWheat').textContent = gameStateRef.storedWheat;
+    document.getElementById('statFlour').textContent = gameStateRef.storedFlour;
+    document.getElementById('statBread').textContent = gameStateRef.storedBread;
     document.getElementById('statPlanted').textContent = world.fields.filter(f => f.state !== 'empty').length;
     document.getElementById('statHarvested').textContent = gameStateRef.totalHarvested;
     document.getElementById('statDays').textContent = gameStateRef.day;

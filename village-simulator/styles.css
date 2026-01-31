@@ -447,6 +447,10 @@ body {
     background: linear-gradient(90deg, #e74c3c, #f39c12, #27ae60);
 }
 
+.status-bar-fill.hunger {
+    background: linear-gradient(90deg, #e74c3c, #f39c12, #f1c40f);
+}
+
 .inventory-display {
     display: flex;
     gap: 8px;
@@ -475,7 +479,7 @@ body {
 
 .stat-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 10px;
 }
 

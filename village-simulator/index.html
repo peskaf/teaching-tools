@@ -82,10 +82,16 @@
                                 <div class="palette-node condition" data-type="condition" data-subtype="isNight">🌙 Is Night?</div>
                                 <div class="palette-node condition" data-type="condition" data-subtype="isDay">☀️ Is Day?</div>
                                 <div class="palette-node condition" data-type="condition" data-subtype="isTired">😴 Is Tired?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="isHungry">🍽️ Is Hungry?</div>
                                 <div class="palette-node condition" data-type="condition" data-subtype="hasItems">🎒 Has Items?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="hasWheat">🌾 Has Wheat?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="hasFlour">🥛 Has Flour?</div>
                                 <div class="palette-node condition" data-type="condition" data-subtype="cropsReady">🌾 Crops Ready?</div>
                                 <div class="palette-node condition" data-type="condition" data-subtype="fieldEmpty">🟫 Field Empty?</div>
                                 <div class="palette-node condition" data-type="condition" data-subtype="needsWater">💧 Needs Water?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="storageHasWheat">📦🌾 Storage Has Wheat?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="storageHasFlour">📦🥛 Storage Has Flour?</div>
+                                <div class="palette-node condition" data-type="condition" data-subtype="storageHasBread">📦🍞 Storage Has Bread?</div>
                             </div>
                         </div>
 
@@ -93,13 +99,21 @@
                             <h4>Actions</h4>
                             <div class="palette-nodes">
                                 <div class="palette-node action" data-type="action" data-subtype="goToField">🚶 Go to Field</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToFieldForWatering">🚶 Go to Field (Water)</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToHouse">🏠 Go to House</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToStorage">📦 Go to Storage</div>
                                 <div class="palette-node action" data-type="action" data-subtype="goToWell">💧 Go to Well</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToMill">🏭 Go to Mill</div>
+                                <div class="palette-node action" data-type="action" data-subtype="goToKitchen">🍳 Go to Kitchen</div>
                                 <div class="palette-node action" data-type="action" data-subtype="plantCrops">🌱 Plant Crops</div>
                                 <div class="palette-node action" data-type="action" data-subtype="harvestCrops">🌾 Harvest</div>
                                 <div class="palette-node action" data-type="action" data-subtype="waterCrops">💧 Water Crops</div>
                                 <div class="palette-node action" data-type="action" data-subtype="storeItems">📥 Store Items</div>
+                                <div class="palette-node action" data-type="action" data-subtype="pickupWheat">📤 Pickup Wheat</div>
+                                <div class="palette-node action" data-type="action" data-subtype="pickupFlour">📤 Pickup Flour</div>
+                                <div class="palette-node action" data-type="action" data-subtype="grindWheat">⚙️ Grind Wheat</div>
+                                <div class="palette-node action" data-type="action" data-subtype="bakeBread">🍞 Bake Bread</div>
+                                <div class="palette-node action" data-type="action" data-subtype="eatBread">🍞 Eat Bread</div>
                                 <div class="palette-node action" data-type="action" data-subtype="sleep">😴 Sleep</div>
                                 <div class="palette-node action" data-type="action" data-subtype="rest">☕ Rest</div>
                             </div>
@@ -123,8 +137,16 @@
                         <h3>🌍 Village Stats</h3>
                         <div class="stat-grid">
                             <div class="stat-item">
-                                <div class="value" id="statStorage">0</div>
-                                <div class="label">Stored Crops</div>
+                                <div class="value" id="statWheat">0</div>
+                                <div class="label">🌾 Wheat</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="statFlour">0</div>
+                                <div class="label">🥛 Flour</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="value" id="statBread">0</div>
+                                <div class="label">🍞 Bread</div>
                             </div>
                             <div class="stat-item">
                                 <div class="value" id="statPlanted">0</div>
@@ -162,8 +184,29 @@
                         <ul>
                             <li>After planting, crops need to be watered</li>
                             <li>Crops only grow while watered</li>
-                            <li>Water runs out after ~1 hour, re-water to continue growth</li>
+                            <li>Water runs out after ~3 hours, re-water to continue growth</li>
                             <li>Look for the 💧 icon on dry crops</li>
+                        </ul>
+
+                        <h3 style="margin-top: 15px;">🍞 Production Cycle</h3>
+                        <p>Full cycle: Wheat → Flour → Bread → Eat</p>
+                        <ul>
+                            <li>🌾 <strong>Harvest wheat</strong> from ready crops</li>
+                            <li>📥 <strong>Store wheat</strong> at the storage</li>
+                            <li>📤 <strong>Pickup wheat</strong> from storage</li>
+                            <li>🏭 <strong>Go to mill</strong> and <strong>Grind wheat</strong> into flour</li>
+                            <li>📤 <strong>Pickup flour</strong> from storage</li>
+                            <li>🍳 <strong>Go to kitchen</strong> and <strong>Bake bread</strong></li>
+                            <li>🍞 <strong>Eat bread</strong> when hungry to restore hunger</li>
+                        </ul>
+
+                        <h3 style="margin-top: 15px;">🍽️ Hunger System</h3>
+                        <p>Villagers get hungry over time!</p>
+                        <ul>
+                            <li>Hunger decreases slowly over time</li>
+                            <li>When hunger drops below 40%, villagers become hungry</li>
+                            <li>Eating bread restores 40 hunger points</li>
+                            <li>Very hungry villagers move slower!</li>
                         </ul>
 
                         <h3 style="margin-top: 15px;">📋 Example Tree</h3>

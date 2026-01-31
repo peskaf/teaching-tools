@@ -173,6 +173,10 @@ function drawBuilding(building) {
     } else if (building.type === 'well') {
         drawWell(px, py, w, h, tileSize, scale);
         return; // Well doesn't have walls
+    } else if (building.type === 'mill') {
+        drawMillInterior(px, py, w, h, tileSize, scale);
+    } else if (building.type === 'kitchen') {
+        drawKitchenInterior(px, py, w, h, tileSize, scale);
     }
 
     // Draw walls (only on edges)
@@ -384,6 +388,152 @@ function drawWell(px, py, w, h, tileSize, scale) {
     ctx.font = `bold ${10 * scale}px Arial`;
     ctx.textAlign = 'center';
     ctx.fillText('Well', centerX, py - 5 * scale);
+}
+
+function drawMillInterior(px, py, w, h, tileSize, scale) {
+    const centerX = px + w / 2;
+    const centerY = py + h / 2;
+
+    // Millstone base (large circular stone)
+    ctx.fillStyle = '#5a5a5a';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, tileSize * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Millstone grooves (radial lines)
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 2 * scale;
+    for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(centerX + Math.cos(angle) * tileSize * 0.2, centerY + Math.sin(angle) * tileSize * 0.2);
+        ctx.lineTo(centerX + Math.cos(angle) * tileSize * 0.75, centerY + Math.sin(angle) * tileSize * 0.75);
+        ctx.stroke();
+    }
+
+    // Upper millstone (slightly offset for 3D effect)
+    ctx.fillStyle = '#6a6a6a';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY - 4 * scale, tileSize * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Center pivot
+    ctx.fillStyle = '#4a4a4a';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY - 4 * scale, tileSize * 0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Grinding handle
+    ctx.fillStyle = COLORS.bedFrame;
+    ctx.fillRect(centerX + tileSize * 0.3, centerY - 8 * scale, tileSize * 0.5, 6 * scale);
+
+    // Flour pile (if there's flour in storage)
+    if (gameStateRef && gameStateRef.storedFlour > 0) {
+        ctx.fillStyle = '#e8e0d0';
+        ctx.beginPath();
+        ctx.moveTo(px + 15 * scale, py + h - 15 * scale);
+        ctx.quadraticCurveTo(px + 25 * scale, py + h - 35 * scale, px + 35 * scale, py + h - 15 * scale);
+        ctx.fill();
+    }
+
+    // Wheat sack (decorative, always visible)
+    ctx.fillStyle = '#8a7a5a';
+    ctx.beginPath();
+    ctx.ellipse(px + w - 20 * scale, py + h - 25 * scale, 10 * scale, 15 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Wheat sticking out
+    ctx.fillStyle = '#c4a030';
+    ctx.fillRect(px + w - 24 * scale, py + h - 45 * scale, 3 * scale, 10 * scale);
+    ctx.fillRect(px + w - 18 * scale, py + h - 42 * scale, 3 * scale, 8 * scale);
+}
+
+function drawKitchenInterior(px, py, w, h, tileSize, scale) {
+    // Brick oven (back wall)
+    const ovenWidth = tileSize * 1.5;
+    const ovenHeight = tileSize * 1.2;
+    const ovenX = px + (w - ovenWidth) / 2;
+    const ovenY = py + 10 * scale;
+
+    // Oven body (brick colored)
+    ctx.fillStyle = '#8a5a4a';
+    ctx.fillRect(ovenX, ovenY, ovenWidth, ovenHeight);
+
+    // Oven arch (dome shape on top)
+    ctx.fillStyle = '#7a4a3a';
+    ctx.beginPath();
+    ctx.arc(ovenX + ovenWidth / 2, ovenY, ovenWidth / 2, Math.PI, Math.PI * 2);
+    ctx.fill();
+
+    // Oven opening (dark)
+    ctx.fillStyle = '#2a1a1a';
+    const openingWidth = ovenWidth * 0.5;
+    const openingHeight = ovenHeight * 0.5;
+    const openingX = ovenX + (ovenWidth - openingWidth) / 2;
+    const openingY = ovenY + ovenHeight * 0.3;
+    ctx.fillRect(openingX, openingY, openingWidth, openingHeight);
+
+    // Fire glow inside oven
+    ctx.fillStyle = 'rgba(255, 150, 50, 0.6)';
+    ctx.fillRect(openingX + 3 * scale, openingY + 5 * scale, openingWidth - 6 * scale, openingHeight - 8 * scale);
+
+    // Flames
+    ctx.fillStyle = '#ff6030';
+    for (let i = 0; i < 3; i++) {
+        const flameX = openingX + openingWidth * 0.2 + i * openingWidth * 0.3;
+        const flameY = openingY + openingHeight - 3 * scale;
+        ctx.beginPath();
+        ctx.moveTo(flameX, flameY);
+        ctx.quadraticCurveTo(flameX - 3 * scale, flameY - 10 * scale, flameX, flameY - 15 * scale);
+        ctx.quadraticCurveTo(flameX + 3 * scale, flameY - 10 * scale, flameX, flameY);
+        ctx.fill();
+    }
+
+    // Brick pattern
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 1;
+    for (let row = 0; row < 4; row++) {
+        const rowY = ovenY + row * ovenHeight / 4;
+        for (let col = 0; col < 4; col++) {
+            const colX = ovenX + (col + (row % 2) * 0.5) * ovenWidth / 4;
+            ctx.strokeRect(colX, rowY, ovenWidth / 4, ovenHeight / 4);
+        }
+    }
+
+    // Worktable
+    const tableY = py + h - tileSize * 0.8;
+    ctx.fillStyle = COLORS.bedFrame;
+    ctx.fillRect(px + 8 * scale, tableY, w - 16 * scale, tileSize * 0.4);
+
+    // Table legs
+    ctx.fillRect(px + 12 * scale, tableY + tileSize * 0.4, 4 * scale, 10 * scale);
+    ctx.fillRect(px + w - 16 * scale, tableY + tileSize * 0.4, 4 * scale, 10 * scale);
+
+    // Bread loaves on table (if bread in storage)
+    if (gameStateRef && gameStateRef.storedBread > 0) {
+        const numLoaves = Math.min(gameStateRef.storedBread, 4);
+        for (let i = 0; i < numLoaves; i++) {
+            const loafX = px + 20 * scale + i * 18 * scale;
+            ctx.fillStyle = '#c4a060';
+            ctx.beginPath();
+            ctx.ellipse(loafX, tableY - 5 * scale, 8 * scale, 5 * scale, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Bread score marks
+            ctx.strokeStyle = '#a08040';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(loafX - 4 * scale, tableY - 6 * scale);
+            ctx.lineTo(loafX + 4 * scale, tableY - 4 * scale);
+            ctx.stroke();
+        }
+    }
+
+    // Flour container
+    ctx.fillStyle = '#d0c8b8';
+    ctx.fillRect(px + w - 30 * scale, tableY - 15 * scale, 15 * scale, 15 * scale);
+    ctx.fillStyle = '#e8e0d0';
+    ctx.beginPath();
+    ctx.arc(px + w - 22 * scale, tableY - 15 * scale, 6 * scale, Math.PI, Math.PI * 2);
+    ctx.fill();
 }
 
 function drawField(field) {
@@ -603,6 +753,10 @@ function drawVillager(villager) {
         case 'walking': stateEmoji = ''; break; // No icon for walking
         case 'watering': stateEmoji = '💧'; break;
         case 'resting': stateEmoji = '☕'; break;
+        case 'grinding': stateEmoji = '⚙️'; break;
+        case 'baking': stateEmoji = '🍞'; break;
+        case 'eating': stateEmoji = '😋'; break;
+        case 'pickingUp': stateEmoji = '📤'; break;
     }
 
     if (stateEmoji) {
