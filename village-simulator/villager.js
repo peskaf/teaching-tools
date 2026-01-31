@@ -314,7 +314,7 @@ function isDoorOrGate(tileX, tileY) {
 
 // Helper to check if a move is valid (doesn't cut corners through walls)
 function canMoveTo(fromX, fromY, toX, toY) {
-    // Check destination
+    // Check destination is not a wall
     if (isBlockedByWall(toX, toY)) return false;
 
     const fromTileX = Math.floor(fromX);
@@ -322,39 +322,25 @@ function canMoveTo(fromX, fromY, toX, toY) {
     const toTileX = Math.floor(toX);
     const toTileY = Math.floor(toY);
 
-    // If we're on a door/gate tile, allow movement in any direction to adjacent non-wall tiles
-    // This enables smooth passage through doors
-    if (isDoorOrGate(fromTileX, fromTileY)) {
-        return true; // Already checked destination isn't blocked
-    }
-
-    // If moving to a door/gate tile, allow it (approaching the door)
-    if (isDoorOrGate(toTileX, toTileY)) {
+    // If staying on same tile, always allow
+    if (fromTileX === toTileX && fromTileY === toTileY) {
         return true;
     }
 
-    // For diagonal moves, also check the two adjacent tiles to prevent corner cutting
-    // If moving diagonally (both X and Y tile changed)
-    if (fromTileX !== toTileX && fromTileY !== toTileY) {
-        // Check both corner tiles to prevent cutting through diagonal walls
-        const corner1Blocked = isBlockedByWall(toTileX + 0.5, fromTileY + 0.5);
-        const corner2Blocked = isBlockedByWall(fromTileX + 0.5, toTileY + 0.5);
+    // If moving to adjacent tile (not diagonal), always allow
+    if (fromTileX === toTileX || fromTileY === toTileY) {
+        return true;
+    }
 
-        // Block if both corners are walls (can't squeeze through diagonal gap)
-        if (corner1Blocked && corner2Blocked) {
-            return false;
-        }
+    // Diagonal movement - must check corners to prevent cutting through walls
+    // Check the two corner tiles that would be cut through
+    const corner1Blocked = isBlockedByWall(toTileX + 0.5, fromTileY + 0.5);
+    const corner2Blocked = isBlockedByWall(fromTileX + 0.5, toTileY + 0.5);
 
-        // Also block if one corner is a wall and we're not going through a door
-        // This prevents cutting corners around building edges
-        if (corner1Blocked || corner2Blocked) {
-            // Only allow if one of the corners is a door/gate
-            const corner1IsDoor = isDoorOrGate(toTileX, fromTileY);
-            const corner2IsDoor = isDoorOrGate(fromTileX, toTileY);
-            if (!corner1IsDoor && !corner2IsDoor) {
-                return false;
-            }
-        }
+    // If EITHER corner is blocked, don't allow diagonal movement
+    // This is strict but prevents all corner-cutting issues
+    if (corner1Blocked || corner2Blocked) {
+        return false;
     }
 
     return true;
@@ -419,38 +405,21 @@ function createGoToAction(targetGetter) {
             return NodeStatus.FAILURE;
         }
 
-        // Determine actual target - if target is in a building and we're outside, use waypoints
+        // Determine actual target - if target is in a building and we're outside, go through door
         let target = finalTarget;
         const building = findBuildingForTarget(finalTarget);
         if (building && !isInsideBuilding(villager, building.loc)) {
-            // Get key positions
-            const outsidePos = getOutsideDoorPosition(building);
-            const doorPos = building.door;
             const insidePos = getInsideDoorPosition(building);
-
-            // Calculate distances to each waypoint
-            const distToOutside = Math.sqrt(
-                Math.pow(outsidePos.x - villager.x, 2) + Math.pow(outsidePos.y - villager.y, 2)
-            );
-            const distToDoor = Math.sqrt(
-                Math.pow(doorPos.x - villager.x, 2) + Math.pow(doorPos.y - villager.y, 2)
-            );
             const distToInside = Math.sqrt(
                 Math.pow(insidePos.x - villager.x, 2) + Math.pow(insidePos.y - villager.y, 2)
             );
 
-            // Waypoint sequence: outside -> door -> inside -> final target
-            if (distToOutside >= 0.4 && distToDoor >= 0.8) {
-                // Far from door - go to position just outside the door first
-                target = outsidePos;
-            } else if (distToDoor >= 0.4) {
-                // Near outside position - go to door center
-                target = doorPos;
-            } else if (distToInside >= 0.3) {
-                // At door - step inside
+            // Simple 2-step: go to "just inside door" position, then to final target
+            // The "inside door" position is directly through the door, one tile inside
+            if (distToInside >= 0.3) {
                 target = insidePos;
             }
-            // else: close to inside position, will proceed to final target
+            // else: we're inside enough, proceed to final target
         }
 
         const dx = target.x - villager.x;
