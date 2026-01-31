@@ -46,15 +46,7 @@ export function initUI() {
     });
 
     // Villager selection
-    document.querySelectorAll('.villager-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.villager-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            selectedVillager = parseInt(btn.dataset.villager);
-            selectedNodeId = null;
-            renderTree();
-        });
-    });
+    updateVillagerButtons();
 
     // Node palette
     document.querySelectorAll('.palette-node').forEach(node => {
@@ -72,6 +64,29 @@ export function initUI() {
     renderTree();
 }
 
+// Update villager selection buttons dynamically
+function updateVillagerButtons() {
+    const container = document.querySelector('.villager-select');
+    if (!container) return;
+
+    container.innerHTML = villagers.map((v, i) => `
+        <button class="villager-btn ${i === selectedVillager ? 'active' : ''}" data-villager="${i}">
+            <span class="emoji">${v.emoji}</span>
+            ${v.name}
+        </button>
+    `).join('');
+
+    container.querySelectorAll('.villager-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            container.querySelectorAll('.villager-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedVillager = parseInt(btn.dataset.villager);
+            selectedNodeId = null;
+            renderTree();
+        });
+    });
+}
+
 // Update time display
 export function updateTimeDisplay() {
     if (!gameStateRef) return;
@@ -80,8 +95,32 @@ export function updateTimeDisplay() {
     const minutes = gameStateRef.time % 60;
     const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
-    document.querySelector('.time-display .day').textContent = `Day ${gameStateRef.day}`;
+    const seasonEmoji = {
+        'spring': '🌸',
+        'summer': '☀️',
+        'autumn': '🍂',
+        'winter': '❄️'
+    }[gameStateRef.season] || '☀️';
+
+    document.querySelector('.time-display .day').textContent = `Day ${gameStateRef.day} ${seasonEmoji}`;
     document.querySelector('.time-display .time').textContent = timeStr;
+}
+
+// Update objectives display
+export function updateObjectives() {
+    if (!gameStateRef) return;
+
+    const objectives = document.querySelectorAll('.objective');
+    objectives.forEach(obj => {
+        const key = obj.dataset.objective;
+        if (gameStateRef.objectives && gameStateRef.objectives[key]) {
+            obj.classList.add('completed');
+            obj.querySelector('.objective-check').textContent = '✓';
+        } else {
+            obj.classList.remove('completed');
+            obj.querySelector('.objective-check').textContent = '☐';
+        }
+    });
 }
 
 // Update status panel
@@ -91,12 +130,19 @@ export function updateStatusPanel() {
     // Villager statuses
     let statusHtml = '';
     villagers.forEach(v => {
-        const inventoryIcon = v.inventoryType === 'wheat' ? '🌾' :
-                             v.inventoryType === 'flour' ? '🥛' :
-                             v.inventoryType === 'bread' ? '🍞' : '📦';
+        const inventoryIcon = {
+            'wheat': '🌾',
+            'flour': '🥛',
+            'wood': '🪵',
+            'wool': '🧶',
+            'fish': '🐟'
+        }[v.inventoryType] || '📦';
+
+        const roleLabel = v.role ? `(${v.role})` : '';
+
         statusHtml += `
             <div class="villager-status">
-                <h4>${v.emoji} ${v.name}</h4>
+                <h4>${v.emoji} ${v.name} <small>${roleLabel}</small></h4>
                 <div class="status-row">
                     <span>State:</span>
                     <span>${v.state || 'idle'}</span>
@@ -115,6 +161,13 @@ export function updateStatusPanel() {
                 <div class="status-bar">
                     <div class="status-bar-fill hunger" style="width: ${v.hunger}%"></div>
                 </div>
+                <div class="status-row">
+                    <span>Warmth:</span>
+                    <span>${Math.round(v.warmth)}% ${v.wearingSweater ? '🧥' : ''}</span>
+                </div>
+                <div class="status-bar">
+                    <div class="status-bar-fill warmth" style="width: ${v.warmth}%"></div>
+                </div>
                 <div class="inventory-display">
                     ${v.inventory > 0 ? `<span class="inventory-item">${inventoryIcon} ×${v.inventory}</span>` : '<span class="inventory-item">Empty</span>'}
                 </div>
@@ -123,13 +176,27 @@ export function updateStatusPanel() {
     });
     document.getElementById('villagerStatuses').innerHTML = statusHtml;
 
-    // World stats
+    // World stats - Resources
     document.getElementById('statWheat').textContent = gameStateRef.storedWheat;
     document.getElementById('statFlour').textContent = gameStateRef.storedFlour;
     document.getElementById('statBread').textContent = gameStateRef.storedBread;
+    document.getElementById('statWood').textContent = gameStateRef.storedWood;
+    document.getElementById('statWool').textContent = gameStateRef.storedWool;
+    document.getElementById('statSweaters').textContent = gameStateRef.storedSweaters;
+    document.getElementById('statFish').textContent = (gameStateRef.storedFish || 0) + (gameStateRef.storedCookedFish || 0);
+
+    // Fire status
+    const fireStatus = document.getElementById('statFire');
+    if (fireStatus) {
+        fireStatus.textContent = gameStateRef.fireplaceLit ? '🔥 Lit' : '❄️ Out';
+        fireStatus.style.color = gameStateRef.fireplaceLit ? '#ff6030' : '#6a8aaa';
+    }
+
+    // Other stats
     document.getElementById('statPlanted').textContent = world.fields.filter(f => f.state !== 'empty').length;
     document.getElementById('statHarvested').textContent = gameStateRef.totalHarvested;
     document.getElementById('statDays').textContent = gameStateRef.day;
+    document.getElementById('statSeason').textContent = gameStateRef.season;
 }
 
 // Get icon for node type

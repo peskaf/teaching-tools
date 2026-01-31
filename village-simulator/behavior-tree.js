@@ -121,38 +121,95 @@ export class ActionNode extends BehaviorNode {
 export const NODE_NAMES = {
     selector: '❓ Selector',
     sequence: '➡️ Sequence',
-    // Conditions
+
+    // Conditions - Basic
     isNight: '🌙 Is Night?',
     isDay: '☀️ Is Day?',
     isTired: '😴 Is Tired?',
     isHungry: '🍽️ Is Hungry?',
+    isCold: '🥶 Is Cold?',
+    isWinter: '❄️ Is Winter?',
+
+    // Conditions - Inventory
     hasItems: '🎒 Has Items?',
     hasWheat: '🌾 Has Wheat?',
     hasFlour: '🥛 Has Flour?',
+    hasWood: '🪵 Has Wood?',
+    hasWool: '🧶 Has Wool?',
+    hasFish: '🐟 Has Fish?',
+    wearingSweater: '🧥 Wearing Sweater?',
+    notWearingSweater: '🧥 Not Wearing Sweater?',
+
+    // Conditions - World
     cropsReady: '🌾 Crops Ready?',
     fieldEmpty: '🟫 Field Empty?',
     needsWater: '💧 Needs Water?',
-    storageHasWheat: '📦🌾 Storage Has Wheat?',
-    storageHasFlour: '📦🥛 Storage Has Flour?',
-    storageHasBread: '📦🍞 Storage Has Bread?',
+    treesAvailable: '🌲 Trees Available?',
+    sheepHasWool: '🐑 Sheep Has Wool?',
+    fireNotLit: '🔥 Fire Not Lit?',
+    fireLit: '🔥 Fire Lit?',
+
+    // Conditions - Storage
+    storageHasWheat: '📦🌾 Has Wheat?',
+    storageHasFlour: '📦🥛 Has Flour?',
+    storageHasBread: '📦🍞 Has Bread?',
+    storageHasWood: '📦🪵 Has Wood?',
+    storageHasWool: '📦🧶 Has Wool?',
+    storageHasSweaters: '📦🧥 Has Sweaters?',
+    storageHasFish: '📦🐟 Has Fish?',
+    storageHasCookedFish: '📦🍳 Has Cooked Fish?',
+
     // Movement actions
     goToField: '🚶 Go to Field',
     goToFieldForWatering: '🚶 Go to Field (Water)',
     goToHouse: '🏠 Go to House',
+    goToFireplace: '🔥 Go to Fireplace',
     goToStorage: '📦 Go to Storage',
     goToWell: '💧 Go to Well',
     goToMill: '🏭 Go to Mill',
-    goToKitchen: '🍳 Go to Kitchen',
-    // Work actions
+    goToForest: '🌲 Go to Forest',
+    goToPasture: '🐑 Go to Pasture',
+    goToPond: '🎣 Go to Pond',
+
+    // Farming actions
     plantCrops: '🌱 Plant Crops',
     harvestCrops: '🌾 Harvest',
     waterCrops: '💧 Water Crops',
+
+    // Storage actions
     storeItems: '📥 Store Items',
     pickupWheat: '📤 Pickup Wheat',
     pickupFlour: '📤 Pickup Flour',
+    pickupWood: '📤 Pickup Wood',
+    pickupWool: '📤 Pickup Wool',
+    pickupFish: '📤 Pickup Fish',
+
+    // Processing actions
     grindWheat: '⚙️ Grind Wheat',
     bakeBread: '🍞 Bake Bread',
+
+    // Woodcutting actions
+    chopTree: '🪓 Chop Tree',
+
+    // Sheep/Wool actions
+    shearSheep: '✂️ Shear Sheep',
+    knitSweater: '🧶 Knit Sweater',
+
+    // Fishing actions
+    catchFish: '🎣 Catch Fish',
+    cookFish: '🍳 Cook Fish',
+
+    // Eating actions
     eatBread: '🍞 Eat Bread',
+    eatCookedFish: '🐟 Eat Fish',
+
+    // Warmth actions
+    putOnSweater: '🧥 Put On Sweater',
+    takeOffSweater: '🧥 Take Off Sweater',
+    addWoodToFire: '🔥 Add Wood to Fire',
+    warmByFire: '🔥 Warm By Fire',
+
+    // Rest actions
     sleep: '😴 Sleep',
     rest: '☕ Rest'
 };

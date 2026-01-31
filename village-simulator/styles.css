@@ -397,6 +397,52 @@ body {
     background: #27ae60;
 }
 
+/* Objectives */
+.objectives-section {
+    background: #0f3460;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.objectives-section h3 {
+    color: #e94560;
+    margin-bottom: 12px;
+}
+
+.objective {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+
+.objective.completed {
+    opacity: 0.6;
+}
+
+.objective.completed .objective-check {
+    color: #27ae60;
+}
+
+.objective.completed .objective-text {
+    text-decoration: line-through;
+    color: #888;
+}
+
+.objective-check {
+    font-size: 1.1em;
+    color: #888;
+}
+
+.objective-text {
+    color: #ddd;
+}
+
 /* Status Panel */
 .status-section h3 {
     color: #e94560;
@@ -449,6 +495,10 @@ body {
 
 .status-bar-fill.hunger {
     background: linear-gradient(90deg, #e74c3c, #f39c12, #f1c40f);
+}
+
+.status-bar-fill.warmth {
+    background: linear-gradient(90deg, #3498db, #9b59b6, #e74c3c);
 }
 
 .inventory-display {

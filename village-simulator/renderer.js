@@ -1,4 +1,4 @@
-import { CONFIG, TERRAIN_TYPES } from './config.js';
+import { CONFIG, TERRAIN_TYPES, LOCATIONS } from './config.js';
 import { world } from './world.js';
 import { villagers } from './villager.js';
 
@@ -17,6 +17,9 @@ const COLORS = {
     pathDark: '#6a6a5a',
     soil: '#4a3d2e',
     soilWet: '#3a3025',
+    forest: '#2a3d1a',
+    pond: '#3a5a7a',
+    pondDeep: '#2a4a6a',
 
     // Buildings
     wallStone: '#6a6a6a',
@@ -31,6 +34,11 @@ const COLORS = {
     storageZone: '#4a4a3a',
     crateWood: '#7a6a5a',
 
+    // Fire
+    fireOrange: '#ff6030',
+    fireYellow: '#ffa030',
+    ember: '#aa3020',
+
     // Well
     stoneRim: '#5a5a5a',
     water: '#3a5a7a',
@@ -41,6 +49,21 @@ const COLORS = {
     skin: '#d4a574',
     skinDark: '#c49464',
     hair: '#4a3a2a',
+
+    // Nature
+    treeTrunk: '#5a4030',
+    treeLeaves: '#3a5a2a',
+    treeLeavesLight: '#4a6a3a',
+    sheepBody: '#e8e8e0',
+    sheepFace: '#3a3a3a',
+};
+
+// Season color modifiers
+const SEASON_COLORS = {
+    spring: { grass: '#4a6d23', leaves: '#4a7a3a' },
+    summer: { grass: '#5a7d23', leaves: '#3a6a2a' },
+    autumn: { grass: '#6a5d23', leaves: '#8a5a2a' },
+    winter: { grass: '#6a7a7a', leaves: '#5a6a6a' }
 };
 
 export function initRenderer(canvasElement) {
@@ -82,6 +105,12 @@ function seededRandom(x, y, seed = 0) {
     return n - Math.floor(n);
 }
 
+function getSeasonGrassColor() {
+    if (!gameStateRef) return COLORS.grass;
+    const season = gameStateRef.season || 'summer';
+    return SEASON_COLORS[season]?.grass || COLORS.grass;
+}
+
 function drawTile(x, y, type) {
     const scale = getScale();
     const offset = getOffset();
@@ -90,13 +119,13 @@ function drawTile(x, y, type) {
     const py = offset.y + y * CONFIG.TILE_SIZE * scale;
     const size = CONFIG.TILE_SIZE * scale;
 
-    // Base colors with variation
     let baseColor;
     switch (type) {
         case TERRAIN_TYPES.GRASS:
+            const grassBase = getSeasonGrassColor();
             const grassVariant = seededRandom(x, y);
-            baseColor = grassVariant > 0.7 ? COLORS.grassLight :
-                       grassVariant > 0.3 ? COLORS.grass : COLORS.grassDark;
+            baseColor = grassVariant > 0.7 ? grassBase :
+                       grassVariant > 0.3 ? grassBase : COLORS.grassDark;
             break;
         case TERRAIN_TYPES.DIRT:
             baseColor = seededRandom(x, y) > 0.5 ? COLORS.dirt : COLORS.dirtDark;
@@ -110,6 +139,12 @@ function drawTile(x, y, type) {
         case TERRAIN_TYPES.FLOOR:
             baseColor = COLORS.floor;
             break;
+        case TERRAIN_TYPES.FOREST:
+            baseColor = COLORS.forest;
+            break;
+        case TERRAIN_TYPES.POND:
+            baseColor = seededRandom(x, y) > 0.5 ? COLORS.pond : COLORS.pondDeep;
+            break;
         default:
             baseColor = COLORS.grass;
     }
@@ -117,9 +152,8 @@ function drawTile(x, y, type) {
     ctx.fillStyle = baseColor;
     ctx.fillRect(px, py, size + 1, size + 1);
 
-    // Add subtle texture (grass tufts, pebbles)
+    // Add subtle texture
     if (type === TERRAIN_TYPES.GRASS) {
-        // Random grass tufts
         for (let i = 0; i < 2; i++) {
             const tx = px + seededRandom(x, y, i * 10) * size;
             const ty = py + seededRandom(x, y, i * 20) * size;
@@ -127,17 +161,23 @@ function drawTile(x, y, type) {
             ctx.fillRect(tx, ty, 2 * scale, 3 * scale);
         }
     } else if (type === TERRAIN_TYPES.PATH) {
-        // Pebbles on path
         if (seededRandom(x, y, 5) > 0.7) {
             ctx.fillStyle = 'rgba(100, 100, 90, 0.4)';
             ctx.beginPath();
             ctx.arc(px + size * 0.3, py + size * 0.6, 2 * scale, 0, Math.PI * 2);
             ctx.fill();
         }
+    } else if (type === TERRAIN_TYPES.POND) {
+        // Water ripple
+        ctx.strokeStyle = 'rgba(100, 150, 200, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(px + size * 0.5, py + size * 0.5, size * 0.3, 0, Math.PI * 2);
+        ctx.stroke();
     }
 }
 
-// Draw open floorplan building with walls on edges only
+// Draw building with open floorplan
 function drawBuilding(building) {
     const scale = getScale();
     const offset = getOffset();
@@ -149,7 +189,7 @@ function drawBuilding(building) {
     const h = building.h * tileSize;
     const wallThickness = 4 * scale;
 
-    // Draw floor first
+    // Draw floor
     ctx.fillStyle = building.type === 'house' ? COLORS.floorWood : COLORS.floor;
     ctx.fillRect(px, py, w, h);
 
@@ -172,19 +212,17 @@ function drawBuilding(building) {
         drawStorageInterior(px, py, w, h, tileSize, scale);
     } else if (building.type === 'well') {
         drawWell(px, py, w, h, tileSize, scale);
-        return; // Well doesn't have walls
+        return;
     } else if (building.type === 'mill') {
         drawMillInterior(px, py, w, h, tileSize, scale);
-    } else if (building.type === 'kitchen') {
-        drawKitchenInterior(px, py, w, h, tileSize, scale);
     }
 
-    // Draw walls (only on edges)
+    // Draw walls
     ctx.fillStyle = building.type === 'house' ? COLORS.wallWood : COLORS.wallStone;
 
     // Top wall
     ctx.fillRect(px, py, w, wallThickness);
-    // Bottom wall (with gap for door)
+    // Bottom wall with door gap
     const doorWidth = tileSize * 0.6;
     const doorX = px + (w - doorWidth) / 2;
     ctx.fillRect(px, py + h - wallThickness, doorX - px, wallThickness);
@@ -194,7 +232,7 @@ function drawBuilding(building) {
     // Right wall
     ctx.fillRect(px + w - wallThickness, py, wallThickness, h);
 
-    // Wall shadow/depth
+    // Wall shadow
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.fillRect(px + wallThickness, py + wallThickness, w - wallThickness * 2, 2 * scale);
     ctx.fillRect(px + wallThickness, py + wallThickness, 2 * scale, h - wallThickness * 2);
@@ -207,12 +245,13 @@ function drawBuilding(building) {
 }
 
 function drawHouseInterior(px, py, w, h, tileSize, scale) {
-    // Draw 3 beds (one for each villager)
-    const bedWidth = tileSize * 0.7;
-    const bedHeight = tileSize * 1.2;
-    const bedSpacing = (w - bedWidth * 3) / 4;
+    const numBeds = Math.min(villagers.length, 5);
+    const bedWidth = tileSize * 0.6;
+    const bedHeight = tileSize * 1.0;
+    const bedSpacing = (w - bedWidth * numBeds) / (numBeds + 1);
 
-    for (let i = 0; i < 3; i++) {
+    // Draw beds
+    for (let i = 0; i < numBeds; i++) {
         const bedX = px + bedSpacing + i * (bedWidth + bedSpacing);
         const bedY = py + tileSize * 0.3;
 
@@ -220,7 +259,7 @@ function drawHouseInterior(px, py, w, h, tileSize, scale) {
         ctx.fillStyle = COLORS.bedFrame;
         ctx.fillRect(bedX, bedY, bedWidth, bedHeight);
 
-        // Mattress/sheet
+        // Mattress
         ctx.fillStyle = villagers[i] ? villagers[i].color : COLORS.bedSheet;
         ctx.globalAlpha = 0.6;
         ctx.fillRect(bedX + 2 * scale, bedY + 2 * scale, bedWidth - 4 * scale, bedHeight - 4 * scale);
@@ -228,95 +267,158 @@ function drawHouseInterior(px, py, w, h, tileSize, scale) {
 
         // Pillow
         ctx.fillStyle = COLORS.bedPillow;
-        ctx.fillRect(bedX + 4 * scale, bedY + 4 * scale, bedWidth - 8 * scale, bedHeight * 0.2);
+        ctx.fillRect(bedX + 3 * scale, bedY + 3 * scale, bedWidth - 6 * scale, bedHeight * 0.15);
+    }
 
-        // Bed frame border
-        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(bedX, bedY, bedWidth, bedHeight);
+    // Draw fireplace/cooking area on right side
+    const fireplaceX = px + w - tileSize * 1.2;
+    const fireplaceY = py + h * 0.4;
+    const fireplaceW = tileSize * 0.9;
+    const fireplaceH = tileSize * 0.8;
+
+    // Stone fireplace base
+    ctx.fillStyle = COLORS.stoneRim;
+    ctx.fillRect(fireplaceX, fireplaceY, fireplaceW, fireplaceH);
+
+    // Fire opening
+    ctx.fillStyle = '#2a1a1a';
+    ctx.fillRect(fireplaceX + 5 * scale, fireplaceY + 5 * scale, fireplaceW - 10 * scale, fireplaceH - 10 * scale);
+
+    // Fire if lit
+    if (gameStateRef && gameStateRef.fireplaceLit) {
+        // Glow
+        ctx.fillStyle = 'rgba(255, 150, 50, 0.4)';
+        ctx.fillRect(fireplaceX + 8 * scale, fireplaceY + 10 * scale, fireplaceW - 16 * scale, fireplaceH - 15 * scale);
+
+        // Flames
+        ctx.fillStyle = COLORS.fireOrange;
+        for (let i = 0; i < 3; i++) {
+            const flameX = fireplaceX + fireplaceW * 0.25 + i * fireplaceW * 0.25;
+            const flameY = fireplaceY + fireplaceH - 8 * scale;
+            ctx.beginPath();
+            ctx.moveTo(flameX, flameY);
+            ctx.quadraticCurveTo(flameX - 3 * scale, flameY - 10 * scale, flameX, flameY - 15 * scale);
+            ctx.quadraticCurveTo(flameX + 3 * scale, flameY - 10 * scale, flameX, flameY);
+            ctx.fill();
+        }
+
+        // Embers
+        ctx.fillStyle = COLORS.ember;
+        ctx.fillRect(fireplaceX + 10 * scale, fireplaceY + fireplaceH - 12 * scale, fireplaceW - 20 * scale, 4 * scale);
+    }
+
+    // Wood pile indicator
+    if (gameStateRef && gameStateRef.fireplaceWood > 0) {
+        ctx.fillStyle = COLORS.treeTrunk;
+        const logs = Math.min(Math.ceil(gameStateRef.fireplaceWood / 2), 3);
+        for (let i = 0; i < logs; i++) {
+            ctx.fillRect(fireplaceX - 15 * scale, fireplaceY + fireplaceH - 10 * scale - i * 6 * scale, 12 * scale, 5 * scale);
+        }
     }
 }
 
 function drawStorageInterior(px, py, w, h, tileSize, scale) {
-    // Draw stockpile zone markings
+    // Zone markings
     ctx.fillStyle = COLORS.storageZone;
-    ctx.fillRect(px + 8 * scale, py + 8 * scale, w - 16 * scale, h - 16 * scale);
+    ctx.fillRect(px + 6 * scale, py + 6 * scale, w - 12 * scale, h - 12 * scale);
 
-    // Zone corner markers
+    // Corner markers
     ctx.strokeStyle = '#8a8a6a';
     ctx.lineWidth = 2 * scale;
-    const cornerSize = 8 * scale;
-    const margin = 12 * scale;
+    const cornerSize = 6 * scale;
+    const margin = 8 * scale;
 
-    // Top-left corner
-    ctx.beginPath();
-    ctx.moveTo(px + margin, py + margin + cornerSize);
-    ctx.lineTo(px + margin, py + margin);
-    ctx.lineTo(px + margin + cornerSize, py + margin);
-    ctx.stroke();
+    // Draw corners
+    [[margin, margin], [w - margin, margin], [margin, h - margin], [w - margin, h - margin]].forEach(([cx, cy], i) => {
+        ctx.beginPath();
+        const xDir = i % 2 === 0 ? 1 : -1;
+        const yDir = i < 2 ? 1 : -1;
+        ctx.moveTo(px + cx, py + cy + yDir * cornerSize);
+        ctx.lineTo(px + cx, py + cy);
+        ctx.lineTo(px + cx + xDir * cornerSize, py + cy);
+        ctx.stroke();
+    });
 
-    // Top-right corner
-    ctx.beginPath();
-    ctx.moveTo(px + w - margin - cornerSize, py + margin);
-    ctx.lineTo(px + w - margin, py + margin);
-    ctx.lineTo(px + w - margin, py + margin + cornerSize);
-    ctx.stroke();
+    // Draw stored items as organized piles
+    let itemY = py + margin + 5 * scale;
+    const itemSize = 12 * scale;
+    const itemSpacing = 3 * scale;
 
-    // Bottom-left corner
-    ctx.beginPath();
-    ctx.moveTo(px + margin, py + h - margin - cornerSize);
-    ctx.lineTo(px + margin, py + h - margin);
-    ctx.lineTo(px + margin + cornerSize, py + h - margin);
-    ctx.stroke();
-
-    // Bottom-right corner
-    ctx.beginPath();
-    ctx.moveTo(px + w - margin - cornerSize, py + h - margin);
-    ctx.lineTo(px + w - margin, py + h - margin);
-    ctx.lineTo(px + w - margin, py + h - margin - cornerSize);
-    ctx.stroke();
-
-    // Draw stored crops as stacked crates/piles
-    if (gameStateRef && gameStateRef.storedCrops > 0) {
-        const maxCrates = 12;
-        const cratesPerRow = 4;
-        const crateSize = tileSize * 0.5;
-        const crateSpacing = 4 * scale;
-        const numCrates = Math.min(Math.ceil(gameStateRef.storedCrops / 3), maxCrates);
-
-        for (let i = 0; i < numCrates; i++) {
-            const row = Math.floor(i / cratesPerRow);
-            const col = i % cratesPerRow;
-            const crateX = px + margin + col * (crateSize + crateSpacing);
-            const crateY = py + margin + row * (crateSize + crateSpacing);
-
-            // Crate
-            ctx.fillStyle = COLORS.crateWood;
-            ctx.fillRect(crateX, crateY, crateSize, crateSize);
-
-            // Crate detail lines
-            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(crateX, crateY + crateSize / 2);
-            ctx.lineTo(crateX + crateSize, crateY + crateSize / 2);
-            ctx.moveTo(crateX + crateSize / 2, crateY);
-            ctx.lineTo(crateX + crateSize / 2, crateY + crateSize);
-            ctx.stroke();
-
-            // Wheat visible on top
+    // Wheat (yellow sacks)
+    if (gameStateRef && gameStateRef.storedWheat > 0) {
+        const numSacks = Math.min(Math.ceil(gameStateRef.storedWheat / 3), 4);
+        for (let i = 0; i < numSacks; i++) {
             ctx.fillStyle = '#c4a030';
             ctx.beginPath();
-            ctx.arc(crateX + crateSize * 0.3, crateY + crateSize * 0.3, 3 * scale, 0, Math.PI * 2);
-            ctx.arc(crateX + crateSize * 0.6, crateY + crateSize * 0.4, 3 * scale, 0, Math.PI * 2);
+            ctx.ellipse(px + margin + 10 * scale + i * (itemSize + itemSpacing), itemY + itemSize / 2, itemSize / 2, itemSize / 2 * 0.8, 0, 0, Math.PI * 2);
             ctx.fill();
         }
+        itemY += itemSize + itemSpacing;
+    }
 
-        // Count label
-        ctx.fillStyle = '#ddd';
-        ctx.font = `bold ${10 * scale}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.fillText(`${gameStateRef.storedCrops}`, px + w / 2, py + h - 6 * scale);
+    // Flour (white sacks)
+    if (gameStateRef && gameStateRef.storedFlour > 0) {
+        const numSacks = Math.min(gameStateRef.storedFlour, 4);
+        for (let i = 0; i < numSacks; i++) {
+            ctx.fillStyle = '#e8e0d0';
+            ctx.beginPath();
+            ctx.ellipse(px + margin + 10 * scale + i * (itemSize + itemSpacing), itemY + itemSize / 2, itemSize / 2, itemSize / 2 * 0.8, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        itemY += itemSize + itemSpacing;
+    }
+
+    // Bread (brown loaves)
+    if (gameStateRef && gameStateRef.storedBread > 0) {
+        const numLoaves = Math.min(gameStateRef.storedBread, 4);
+        for (let i = 0; i < numLoaves; i++) {
+            ctx.fillStyle = '#a08040';
+            ctx.beginPath();
+            ctx.ellipse(px + margin + 10 * scale + i * (itemSize + itemSpacing), itemY + itemSize / 3, itemSize / 2, itemSize / 3, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        itemY += itemSize + itemSpacing;
+    }
+
+    // Wood (brown logs)
+    if (gameStateRef && gameStateRef.storedWood > 0) {
+        const numLogs = Math.min(gameStateRef.storedWood, 5);
+        ctx.fillStyle = COLORS.treeTrunk;
+        for (let i = 0; i < numLogs; i++) {
+            ctx.fillRect(px + w - margin - 20 * scale, py + margin + i * 8 * scale, 15 * scale, 6 * scale);
+        }
+    }
+
+    // Wool (fluffy white)
+    if (gameStateRef && gameStateRef.storedWool > 0) {
+        const numWool = Math.min(gameStateRef.storedWool, 4);
+        ctx.fillStyle = COLORS.sheepBody;
+        for (let i = 0; i < numWool; i++) {
+            ctx.beginPath();
+            ctx.arc(px + w - margin - 10 * scale, py + h - margin - 15 * scale - i * 12 * scale, 6 * scale, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // Sweaters (colored rectangles)
+    if (gameStateRef && gameStateRef.storedSweaters > 0) {
+        const numSweaters = Math.min(gameStateRef.storedSweaters, 3);
+        for (let i = 0; i < numSweaters; i++) {
+            ctx.fillStyle = ['#8a4a4a', '#4a8a4a', '#4a4a8a'][i % 3];
+            ctx.fillRect(px + w / 2 - 8 * scale + i * 5 * scale, py + h - margin - 20 * scale, 10 * scale, 12 * scale);
+        }
+    }
+
+    // Fish (blue-ish)
+    if (gameStateRef && (gameStateRef.storedFish > 0 || gameStateRef.storedCookedFish > 0)) {
+        const totalFish = (gameStateRef.storedFish || 0) + (gameStateRef.storedCookedFish || 0);
+        ctx.fillStyle = gameStateRef.storedCookedFish > 0 ? '#a08060' : '#6a8aaa';
+        const numFish = Math.min(totalFish, 3);
+        for (let i = 0; i < numFish; i++) {
+            ctx.beginPath();
+            ctx.ellipse(px + margin + 10 * scale, py + h - margin - 10 * scale - i * 10 * scale, 8 * scale, 4 * scale, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
 }
 
@@ -326,13 +428,13 @@ function drawWell(px, py, w, h, tileSize, scale) {
     const outerRadius = Math.min(w, h) * 0.4;
     const innerRadius = outerRadius * 0.6;
 
-    // Stone rim (outer)
+    // Stone rim
     ctx.fillStyle = COLORS.stoneRim;
     ctx.beginPath();
     ctx.arc(centerX, centerY, outerRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Stone texture on rim
+    // Stone texture
     ctx.strokeStyle = 'rgba(0,0,0,0.2)';
     ctx.lineWidth = 1;
     for (let i = 0; i < 8; i++) {
@@ -343,28 +445,25 @@ function drawWell(px, py, w, h, tileSize, scale) {
         ctx.stroke();
     }
 
-    // Water inside
+    // Water
     ctx.fillStyle = COLORS.water;
     ctx.beginPath();
     ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Water reflection
+    // Reflection
     ctx.fillStyle = 'rgba(100, 150, 200, 0.3)';
     ctx.beginPath();
     ctx.ellipse(centerX - innerRadius * 0.2, centerY - innerRadius * 0.2, innerRadius * 0.3, innerRadius * 0.15, -0.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Wooden post
+    // Wooden post and bucket
     const postHeight = outerRadius * 1.2;
-    const postWidth = 6 * scale;
     ctx.fillStyle = COLORS.bedFrame;
-    ctx.fillRect(centerX + outerRadius * 0.3, centerY - postHeight, postWidth, postHeight);
-
-    // Crossbeam
+    ctx.fillRect(centerX + outerRadius * 0.3, centerY - postHeight, 6 * scale, postHeight);
     ctx.fillRect(centerX - outerRadius * 0.5, centerY - postHeight, outerRadius * 1.3, 4 * scale);
 
-    // Rope
+    // Rope and bucket
     ctx.strokeStyle = COLORS.rope;
     ctx.lineWidth = 2 * scale;
     ctx.beginPath();
@@ -372,7 +471,6 @@ function drawWell(px, py, w, h, tileSize, scale) {
     ctx.lineTo(centerX, centerY - innerRadius * 0.5);
     ctx.stroke();
 
-    // Bucket
     const bucketY = centerY - innerRadius * 0.5;
     ctx.fillStyle = COLORS.bucket;
     ctx.beginPath();
@@ -394,13 +492,13 @@ function drawMillInterior(px, py, w, h, tileSize, scale) {
     const centerX = px + w / 2;
     const centerY = py + h / 2;
 
-    // Millstone base (large circular stone)
+    // Millstone base
     ctx.fillStyle = '#5a5a5a';
     ctx.beginPath();
     ctx.arc(centerX, centerY, tileSize * 0.8, 0, Math.PI * 2);
     ctx.fill();
 
-    // Millstone grooves (radial lines)
+    // Grooves
     ctx.strokeStyle = 'rgba(0,0,0,0.3)';
     ctx.lineWidth = 2 * scale;
     for (let i = 0; i < 8; i++) {
@@ -411,129 +509,113 @@ function drawMillInterior(px, py, w, h, tileSize, scale) {
         ctx.stroke();
     }
 
-    // Upper millstone (slightly offset for 3D effect)
+    // Upper stone
     ctx.fillStyle = '#6a6a6a';
     ctx.beginPath();
     ctx.arc(centerX, centerY - 4 * scale, tileSize * 0.6, 0, Math.PI * 2);
     ctx.fill();
 
-    // Center pivot
+    // Pivot
     ctx.fillStyle = '#4a4a4a';
     ctx.beginPath();
     ctx.arc(centerX, centerY - 4 * scale, tileSize * 0.15, 0, Math.PI * 2);
     ctx.fill();
 
-    // Grinding handle
+    // Handle
     ctx.fillStyle = COLORS.bedFrame;
     ctx.fillRect(centerX + tileSize * 0.3, centerY - 8 * scale, tileSize * 0.5, 6 * scale);
-
-    // Flour pile (if there's flour in storage)
-    if (gameStateRef && gameStateRef.storedFlour > 0) {
-        ctx.fillStyle = '#e8e0d0';
-        ctx.beginPath();
-        ctx.moveTo(px + 15 * scale, py + h - 15 * scale);
-        ctx.quadraticCurveTo(px + 25 * scale, py + h - 35 * scale, px + 35 * scale, py + h - 15 * scale);
-        ctx.fill();
-    }
-
-    // Wheat sack (decorative, always visible)
-    ctx.fillStyle = '#8a7a5a';
-    ctx.beginPath();
-    ctx.ellipse(px + w - 20 * scale, py + h - 25 * scale, 10 * scale, 15 * scale, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Wheat sticking out
-    ctx.fillStyle = '#c4a030';
-    ctx.fillRect(px + w - 24 * scale, py + h - 45 * scale, 3 * scale, 10 * scale);
-    ctx.fillRect(px + w - 18 * scale, py + h - 42 * scale, 3 * scale, 8 * scale);
 }
 
-function drawKitchenInterior(px, py, w, h, tileSize, scale) {
-    // Brick oven (back wall)
-    const ovenWidth = tileSize * 1.5;
-    const ovenHeight = tileSize * 1.2;
-    const ovenX = px + (w - ovenWidth) / 2;
-    const ovenY = py + 10 * scale;
+function drawTree(tree) {
+    const scale = getScale();
+    const offset = getOffset();
+    const tileSize = CONFIG.TILE_SIZE * scale;
 
-    // Oven body (brick colored)
-    ctx.fillStyle = '#8a5a4a';
-    ctx.fillRect(ovenX, ovenY, ovenWidth, ovenHeight);
+    const px = offset.x + tree.x * tileSize;
+    const py = offset.y + tree.y * tileSize;
 
-    // Oven arch (dome shape on top)
-    ctx.fillStyle = '#7a4a3a';
-    ctx.beginPath();
-    ctx.arc(ovenX + ovenWidth / 2, ovenY, ovenWidth / 2, Math.PI, Math.PI * 2);
-    ctx.fill();
+    if (tree.state === 'grown') {
+        // Trunk
+        ctx.fillStyle = COLORS.treeTrunk;
+        ctx.fillRect(px - 4 * scale, py - 10 * scale, 8 * scale, 20 * scale);
 
-    // Oven opening (dark)
-    ctx.fillStyle = '#2a1a1a';
-    const openingWidth = ovenWidth * 0.5;
-    const openingHeight = ovenHeight * 0.5;
-    const openingX = ovenX + (ovenWidth - openingWidth) / 2;
-    const openingY = ovenY + ovenHeight * 0.3;
-    ctx.fillRect(openingX, openingY, openingWidth, openingHeight);
+        // Leaves (season-dependent)
+        const season = gameStateRef?.season || 'summer';
+        ctx.fillStyle = SEASON_COLORS[season]?.leaves || COLORS.treeLeaves;
 
-    // Fire glow inside oven
-    ctx.fillStyle = 'rgba(255, 150, 50, 0.6)';
-    ctx.fillRect(openingX + 3 * scale, openingY + 5 * scale, openingWidth - 6 * scale, openingHeight - 8 * scale);
-
-    // Flames
-    ctx.fillStyle = '#ff6030';
-    for (let i = 0; i < 3; i++) {
-        const flameX = openingX + openingWidth * 0.2 + i * openingWidth * 0.3;
-        const flameY = openingY + openingHeight - 3 * scale;
+        // Foliage circles
         ctx.beginPath();
-        ctx.moveTo(flameX, flameY);
-        ctx.quadraticCurveTo(flameX - 3 * scale, flameY - 10 * scale, flameX, flameY - 15 * scale);
-        ctx.quadraticCurveTo(flameX + 3 * scale, flameY - 10 * scale, flameX, flameY);
+        ctx.arc(px, py - 20 * scale, 12 * scale, 0, Math.PI * 2);
+        ctx.arc(px - 8 * scale, py - 15 * scale, 8 * scale, 0, Math.PI * 2);
+        ctx.arc(px + 8 * scale, py - 15 * scale, 8 * scale, 0, Math.PI * 2);
         ctx.fill();
-    }
 
-    // Brick pattern
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-    ctx.lineWidth = 1;
-    for (let row = 0; row < 4; row++) {
-        const rowY = ovenY + row * ovenHeight / 4;
-        for (let col = 0; col < 4; col++) {
-            const colX = ovenX + (col + (row % 2) * 0.5) * ovenWidth / 4;
-            ctx.strokeRect(colX, rowY, ovenWidth / 4, ovenHeight / 4);
-        }
-    }
-
-    // Worktable
-    const tableY = py + h - tileSize * 0.8;
-    ctx.fillStyle = COLORS.bedFrame;
-    ctx.fillRect(px + 8 * scale, tableY, w - 16 * scale, tileSize * 0.4);
-
-    // Table legs
-    ctx.fillRect(px + 12 * scale, tableY + tileSize * 0.4, 4 * scale, 10 * scale);
-    ctx.fillRect(px + w - 16 * scale, tableY + tileSize * 0.4, 4 * scale, 10 * scale);
-
-    // Bread loaves on table (if bread in storage)
-    if (gameStateRef && gameStateRef.storedBread > 0) {
-        const numLoaves = Math.min(gameStateRef.storedBread, 4);
-        for (let i = 0; i < numLoaves; i++) {
-            const loafX = px + 20 * scale + i * 18 * scale;
-            ctx.fillStyle = '#c4a060';
+        // Snow in winter
+        if (season === 'winter') {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
             ctx.beginPath();
-            ctx.ellipse(loafX, tableY - 5 * scale, 8 * scale, 5 * scale, 0, 0, Math.PI * 2);
+            ctx.arc(px, py - 22 * scale, 8 * scale, Math.PI, Math.PI * 2);
             ctx.fill();
-            // Bread score marks
-            ctx.strokeStyle = '#a08040';
-            ctx.lineWidth = 1;
+        }
+    } else if (tree.state === 'growing') {
+        // Stump
+        ctx.fillStyle = COLORS.treeTrunk;
+        ctx.fillRect(px - 5 * scale, py - 3 * scale, 10 * scale, 8 * scale);
+
+        // Small sprout
+        const progress = 1 - (tree.regrowTimer / CONFIG.TREE_REGROW_TIME);
+        if (progress > 0.3) {
+            ctx.fillStyle = COLORS.treeLeaves;
             ctx.beginPath();
-            ctx.moveTo(loafX - 4 * scale, tableY - 6 * scale);
-            ctx.lineTo(loafX + 4 * scale, tableY - 4 * scale);
-            ctx.stroke();
+            ctx.arc(px, py - 5 * scale, 4 * scale * progress, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+}
+
+function drawSheep(sheep) {
+    const scale = getScale();
+    const offset = getOffset();
+    const tileSize = CONFIG.TILE_SIZE * scale;
+
+    const px = offset.x + sheep.x * tileSize;
+    const py = offset.y + sheep.y * tileSize;
+
+    // Body
+    ctx.fillStyle = sheep.hasWool ? COLORS.sheepBody : '#aaaaaa';
+    ctx.beginPath();
+    ctx.ellipse(px, py, 12 * scale, 8 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Wool texture if has wool
+    if (sheep.hasWool) {
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        for (let i = 0; i < 5; i++) {
+            const wx = px - 8 * scale + seededRandom(sheep.id, i, 0) * 16 * scale;
+            const wy = py - 4 * scale + seededRandom(sheep.id, i, 1) * 8 * scale;
+            ctx.beginPath();
+            ctx.arc(wx, wy, 3 * scale, 0, Math.PI * 2);
+            ctx.fill();
         }
     }
 
-    // Flour container
-    ctx.fillStyle = '#d0c8b8';
-    ctx.fillRect(px + w - 30 * scale, tableY - 15 * scale, 15 * scale, 15 * scale);
-    ctx.fillStyle = '#e8e0d0';
+    // Head
+    ctx.fillStyle = COLORS.sheepFace;
     ctx.beginPath();
-    ctx.arc(px + w - 22 * scale, tableY - 15 * scale, 6 * scale, Math.PI, Math.PI * 2);
+    ctx.ellipse(px + 10 * scale, py, 5 * scale, 4 * scale, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    // Ears
+    ctx.beginPath();
+    ctx.ellipse(px + 8 * scale, py - 5 * scale, 3 * scale, 2 * scale, -0.5, 0, Math.PI * 2);
+    ctx.ellipse(px + 8 * scale, py + 5 * scale, 3 * scale, 2 * scale, 0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Legs
+    ctx.fillStyle = COLORS.sheepFace;
+    ctx.fillRect(px - 8 * scale, py + 6 * scale, 3 * scale, 6 * scale);
+    ctx.fillRect(px - 2 * scale, py + 6 * scale, 3 * scale, 6 * scale);
+    ctx.fillRect(px + 4 * scale, py + 6 * scale, 3 * scale, 6 * scale);
 }
 
 function drawField(field) {
@@ -544,11 +626,11 @@ function drawField(field) {
     const py = offset.y + field.y * CONFIG.TILE_SIZE * scale;
     const size = CONFIG.TILE_SIZE * scale;
 
-    // Soil base with furrows
+    // Soil
     ctx.fillStyle = field.isWatered ? COLORS.soilWet : COLORS.soil;
     ctx.fillRect(px, py, size, size);
 
-    // Furrow lines
+    // Furrows
     ctx.strokeStyle = 'rgba(0,0,0,0.15)';
     ctx.lineWidth = 1;
     for (let i = 1; i < 4; i++) {
@@ -558,7 +640,7 @@ function drawField(field) {
         ctx.stroke();
     }
 
-    // Water sheen if watered
+    // Water sheen
     if (field.isWatered && (field.state === 'planted' || field.state === 'growing')) {
         ctx.fillStyle = 'rgba(80, 120, 180, 0.2)';
         ctx.fillRect(px + 2, py + 2, size - 4, size - 4);
@@ -566,19 +648,15 @@ function drawField(field) {
 
     // Crop visualization
     if (field.state === 'planted') {
-        // Small seedlings in rows
         ctx.fillStyle = '#4a7a2a';
         for (let i = 0; i < 3; i++) {
             const seedX = px + size * 0.25 + i * size * 0.25;
             const seedY = py + size * 0.7;
             ctx.fillRect(seedX - 1, seedY, 2 * scale, 6 * scale);
-            // Tiny leaves
             ctx.beginPath();
             ctx.arc(seedX, seedY, 2 * scale, 0, Math.PI * 2);
             ctx.fill();
         }
-
-        // Dry indicator
         if (!field.isWatered) {
             drawNeedsWaterIcon(px, py, size, scale);
         }
@@ -586,14 +664,11 @@ function drawField(field) {
         const progress = 1 - (field.growthTimer / CONFIG.CROP_GROW_TIME);
         const cropHeight = 6 + 14 * progress;
 
-        // Growing wheat stalks
         ctx.fillStyle = '#5a8a3a';
         for (let i = 0; i < 4; i++) {
             const stalkX = px + size * 0.15 + i * size * 0.22;
             const stalkY = py + size * 0.85;
             ctx.fillRect(stalkX, stalkY - cropHeight * scale, 2 * scale, cropHeight * scale);
-
-            // Leaves
             if (progress > 0.3) {
                 ctx.beginPath();
                 ctx.moveTo(stalkX, stalkY - cropHeight * scale * 0.6);
@@ -605,50 +680,32 @@ function drawField(field) {
 
         // Progress bar
         const barWidth = size * 0.6;
-        const barHeight = 3 * scale;
-        const barX = px + (size - barWidth) / 2;
-        const barY = py + 2;
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.fillRect(barX, barY, barWidth, barHeight);
+        ctx.fillRect(px + (size - barWidth) / 2, py + 2, barWidth, 3 * scale);
         ctx.fillStyle = '#7aaa4a';
-        ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+        ctx.fillRect(px + (size - barWidth) / 2, py + 2, barWidth * progress, 3 * scale);
 
-        // Dry indicator
         if (!field.isWatered) {
             drawNeedsWaterIcon(px, py, size, scale);
         }
     } else if (field.state === 'ready') {
-        // Mature wheat
         ctx.fillStyle = '#c4a030';
         for (let i = 0; i < 4; i++) {
             const stalkX = px + size * 0.15 + i * size * 0.22;
             const stalkY = py + size * 0.85;
 
-            // Stalk
             ctx.fillStyle = '#a08020';
             ctx.fillRect(stalkX, stalkY - 20 * scale, 2 * scale, 20 * scale);
 
-            // Wheat head
             ctx.fillStyle = '#d4b040';
             ctx.beginPath();
             ctx.ellipse(stalkX + 1 * scale, stalkY - 22 * scale, 3 * scale, 6 * scale, 0, 0, Math.PI * 2);
             ctx.fill();
-
-            // Wheat grain details
-            ctx.strokeStyle = '#b09020';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(stalkX - 2 * scale, stalkY - 24 * scale);
-            ctx.lineTo(stalkX + 4 * scale, stalkY - 24 * scale);
-            ctx.moveTo(stalkX - 2 * scale, stalkY - 21 * scale);
-            ctx.lineTo(stalkX + 4 * scale, stalkY - 21 * scale);
-            ctx.stroke();
         }
     }
 }
 
 function drawNeedsWaterIcon(px, py, size, scale) {
-    // Water droplet icon
     const iconX = px + size * 0.8;
     const iconY = py + size * 0.2;
 
@@ -659,14 +716,12 @@ function drawNeedsWaterIcon(px, py, size, scale) {
     ctx.quadraticCurveTo(iconX - 5 * scale, iconY + 2 * scale, iconX, iconY - 4 * scale);
     ctx.fill();
 
-    // Highlight
     ctx.fillStyle = 'rgba(150, 200, 255, 0.5)';
     ctx.beginPath();
     ctx.arc(iconX - 1 * scale, iconY, 1.5 * scale, 0, Math.PI * 2);
     ctx.fill();
 }
 
-// Rimworld-style character (capsule/pill shape)
 function drawVillager(villager) {
     const scale = getScale();
     const offset = getOffset();
@@ -687,35 +742,36 @@ function drawVillager(villager) {
     ctx.ellipse(centerX, py + size * 0.92, bodyWidth * 0.8, size * 0.06, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Legs (behind body)
+    // Legs
     ctx.fillStyle = '#3a3a3a';
     ctx.fillRect(centerX - bodyWidth * 0.5, bodyBottom - 4 * scale, 4 * scale, 8 * scale);
     ctx.fillRect(centerX + bodyWidth * 0.1, bodyBottom - 4 * scale, 4 * scale, 8 * scale);
 
-    // Body (capsule/pill shape)
+    // Body
     ctx.fillStyle = villager.color;
-
-    // Body rectangle
     ctx.fillRect(centerX - bodyWidth / 2, bodyTop + headRadius, bodyWidth, bodyBottom - bodyTop - headRadius);
-
-    // Rounded bottom
     ctx.beginPath();
     ctx.arc(centerX, bodyBottom, bodyWidth / 2, 0, Math.PI);
     ctx.fill();
+
+    // Sweater indicator
+    if (villager.wearingSweater) {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2 * scale;
+        ctx.strokeRect(centerX - bodyWidth / 2 - 1 * scale, bodyTop + headRadius, bodyWidth + 2 * scale, bodyBottom - bodyTop - headRadius);
+    }
 
     // Body shading
     ctx.fillStyle = 'rgba(0,0,0,0.15)';
     ctx.fillRect(centerX, bodyTop + headRadius, bodyWidth / 2, bodyBottom - bodyTop - headRadius);
 
-    // Arms (simple rectangles on sides)
-    if (villager.state === 'planting' || villager.state === 'harvesting' || villager.state === 'watering') {
-        // Arms extended down
-        ctx.fillStyle = COLORS.skin;
+    // Arms
+    const armExtended = ['planting', 'harvesting', 'watering', 'chopping', 'shearing', 'fishing'].includes(villager.state);
+    ctx.fillStyle = COLORS.skin;
+    if (armExtended) {
         ctx.fillRect(centerX - bodyWidth / 2 - 3 * scale, bodyTop + headRadius + 5 * scale, 3 * scale, 15 * scale);
         ctx.fillRect(centerX + bodyWidth / 2, bodyTop + headRadius + 5 * scale, 3 * scale, 15 * scale);
     } else {
-        // Arms at sides
-        ctx.fillStyle = COLORS.skin;
         ctx.fillRect(centerX - bodyWidth / 2 - 3 * scale, bodyTop + headRadius + 2 * scale, 3 * scale, 10 * scale);
         ctx.fillRect(centerX + bodyWidth / 2, bodyTop + headRadius + 2 * scale, 3 * scale, 10 * scale);
     }
@@ -726,37 +782,42 @@ function drawVillager(villager) {
     ctx.arc(centerX, bodyTop + headRadius, headRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Head shading
     ctx.fillStyle = 'rgba(0,0,0,0.1)';
     ctx.beginPath();
     ctx.arc(centerX + 2 * scale, bodyTop + headRadius, headRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Hair (simple cap on top)
+    // Hair
     ctx.fillStyle = COLORS.hair;
     ctx.beginPath();
     ctx.arc(centerX, bodyTop + headRadius - 2 * scale, headRadius * 0.9, Math.PI, Math.PI * 2);
     ctx.fill();
 
-    // Eyes (tiny dots)
+    // Eyes
     ctx.fillStyle = '#2a2a2a';
     ctx.fillRect(centerX - 4 * scale, bodyTop + headRadius - 1 * scale, 2 * scale, 2 * scale);
     ctx.fillRect(centerX + 2 * scale, bodyTop + headRadius - 1 * scale, 2 * scale, 2 * scale);
 
-    // State indicator (small icon above head)
+    // State indicator
     let stateEmoji = '';
     switch (villager.state) {
         case 'sleeping': stateEmoji = '💤'; break;
         case 'planting': stateEmoji = '🌱'; break;
         case 'harvesting': stateEmoji = '🌾'; break;
         case 'storing': stateEmoji = '📦'; break;
-        case 'walking': stateEmoji = ''; break; // No icon for walking
         case 'watering': stateEmoji = '💧'; break;
         case 'resting': stateEmoji = '☕'; break;
         case 'grinding': stateEmoji = '⚙️'; break;
         case 'baking': stateEmoji = '🍞'; break;
         case 'eating': stateEmoji = '😋'; break;
-        case 'pickingUp': stateEmoji = '📤'; break;
+        case 'chopping': stateEmoji = '🪓'; break;
+        case 'shearing': stateEmoji = '✂️'; break;
+        case 'knitting': stateEmoji = '🧶'; break;
+        case 'fishing': stateEmoji = '🎣'; break;
+        case 'cooking': stateEmoji = '🍳'; break;
+        case 'warming': stateEmoji = '🔥'; break;
+        case 'dressing': stateEmoji = '🧥'; break;
+        case 'stoking': stateEmoji = '🔥'; break;
     }
 
     if (stateEmoji) {
@@ -765,24 +826,47 @@ function drawVillager(villager) {
         ctx.fillText(stateEmoji, centerX, bodyTop - 5 * scale);
     }
 
-    // Name below
+    // Cold indicator
+    if (villager.warmth < 30) {
+        ctx.font = `${10 * scale}px Arial`;
+        ctx.fillText('🥶', centerX + 15 * scale, bodyTop);
+    }
+
+    // Name
     ctx.fillStyle = '#ddd';
     ctx.font = `bold ${9 * scale}px Arial`;
     ctx.textAlign = 'center';
     ctx.fillText(villager.name, centerX, py + size + 10 * scale);
 
-    // Inventory indicator (backpack/sack if carrying items)
+    // Inventory indicator
     if (villager.inventory > 0) {
-        // Small sack on back
         ctx.fillStyle = '#8a7a5a';
         ctx.beginPath();
         ctx.ellipse(centerX + bodyWidth / 2 + 4 * scale, bodyTop + headRadius + 15 * scale, 5 * scale, 7 * scale, 0.2, 0, Math.PI * 2);
         ctx.fill();
 
-        // Count
-        ctx.fillStyle = '#ffc857';
-        ctx.font = `bold ${8 * scale}px Arial`;
-        ctx.fillText(`${villager.inventory}`, centerX + bodyWidth / 2 + 12 * scale, bodyTop + headRadius + 18 * scale);
+        const invIcon = {
+            'wheat': '🌾',
+            'flour': '🥛',
+            'wood': '🪵',
+            'wool': '🧶',
+            'fish': '🐟'
+        }[villager.inventoryType] || '📦';
+
+        ctx.font = `${8 * scale}px Arial`;
+        ctx.fillText(invIcon, centerX + bodyWidth / 2 + 12 * scale, bodyTop + headRadius + 18 * scale);
+    }
+}
+
+function drawSeasonOverlay() {
+    if (!gameStateRef) return;
+
+    const season = gameStateRef.season;
+
+    // Winter snow effect
+    if (season === 'winter') {
+        ctx.fillStyle = 'rgba(200, 220, 255, 0.1)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 }
 
@@ -807,26 +891,33 @@ function drawDayNightOverlay() {
 export function render() {
     if (!canvas || !ctx) return;
 
-    // Clear with dark background
+    // Clear
     ctx.fillStyle = '#1a1a1e';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw terrain
+    // Terrain
     for (let y = 0; y < world.height; y++) {
         for (let x = 0; x < world.width; x++) {
             drawTile(x, y, world.terrain[y][x]);
         }
     }
 
-    // Draw fields
+    // Fields
     world.fields.forEach(drawField);
 
-    // Draw buildings
+    // Trees
+    world.trees.forEach(drawTree);
+
+    // Sheep
+    world.sheep.forEach(drawSheep);
+
+    // Buildings
     world.buildings.forEach(drawBuilding);
 
-    // Draw villagers
+    // Villagers
     villagers.forEach(drawVillager);
 
-    // Day/night overlay
+    // Overlays
+    drawSeasonOverlay();
     drawDayNightOverlay();
 }
