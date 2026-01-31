@@ -148,6 +148,8 @@ export const NODE_NAMES = {
     sheepHasWool: '🐑 Sheep Has Wool?',
     fireNotLit: '🔥 Fire Not Lit?',
     fireLit: '🔥 Fire Lit?',
+    fireOutbreak: '🚨 Fire Outbreak?',
+    hasWaterBucket: '🪣 Has Water Bucket?',
 
     // Conditions - Storage
     storageHasWheat: '📦🌾 Has Wheat?',
@@ -164,12 +166,15 @@ export const NODE_NAMES = {
     goToFieldForWatering: '🚶 Go to Field (Water)',
     goToHouse: '🏠 Go to House',
     goToFireplace: '🔥 Go to Fireplace',
+    goToStove: '🍳 Go to Stove',
+    goToKnittingStation: '🧶 Go to Knitting',
     goToStorage: '📦 Go to Storage',
     goToWell: '💧 Go to Well',
     goToMill: '🏭 Go to Mill',
     goToForest: '🌲 Go to Forest',
     goToPasture: '🐑 Go to Pasture',
     goToPond: '🎣 Go to Pond',
+    goToFire: '🚨 Go to Fire',
 
     // Farming actions
     plantCrops: '🌱 Plant Crops',
@@ -211,7 +216,11 @@ export const NODE_NAMES = {
 
     // Rest actions
     sleep: '😴 Sleep',
-    rest: '☕ Rest'
+    rest: '☕ Rest',
+
+    // Firefighting actions
+    getWater: '🪣 Get Water',
+    extinguishFire: '🧯 Extinguish Fire'
 };
 
 // Find a node by ID in a tree

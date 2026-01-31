@@ -1,4 +1,4 @@
-import { CONFIG, TERRAIN_TYPES, LOCATIONS } from './config.js';
+import { CONFIG, TERRAIN_TYPES, LOCATIONS, getBedPosition, HOUSE_POSITIONS } from './config.js';
 import { world } from './world.js';
 import { villagers } from './villager.js';
 
@@ -20,6 +20,11 @@ const COLORS = {
     forest: '#2a3d1a',
     pond: '#3a5a7a',
     pondDeep: '#2a4a6a',
+    pondEdge: '#5a7a9a',
+
+    // Fence
+    fence: '#6a5030',
+    fencePost: '#5a4025',
 
     // Buildings
     wallStone: '#6a6a6a',
@@ -37,7 +42,17 @@ const COLORS = {
     // Fire
     fireOrange: '#ff6030',
     fireYellow: '#ffa030',
+    fireRed: '#ff3020',
     ember: '#aa3020',
+
+    // Kitchen
+    stoveMetal: '#4a4a4a',
+    stoveTop: '#3a3a3a',
+    potMetal: '#5a5a5a',
+
+    // Knitting
+    yarn: '#c45070',
+    needles: '#8a8a8a',
 
     // Well
     stoneRim: '#5a5a5a',
@@ -145,6 +160,9 @@ function drawTile(x, y, type) {
         case TERRAIN_TYPES.POND:
             baseColor = seededRandom(x, y) > 0.5 ? COLORS.pond : COLORS.pondDeep;
             break;
+        case TERRAIN_TYPES.FENCE:
+            baseColor = getSeasonGrassColor(); // Draw grass underneath
+            break;
         default:
             baseColor = COLORS.grass;
     }
@@ -174,6 +192,38 @@ function drawTile(x, y, type) {
         ctx.beginPath();
         ctx.arc(px + size * 0.5, py + size * 0.5, size * 0.3, 0, Math.PI * 2);
         ctx.stroke();
+
+        // Add occasional reeds at pond edges
+        if (seededRandom(x, y, 7) > 0.7) {
+            ctx.fillStyle = '#3a5a2a';
+            ctx.fillRect(px + size * 0.2, py + size * 0.1, 2 * scale, 10 * scale);
+            ctx.fillRect(px + size * 0.3, py + size * 0.15, 2 * scale, 8 * scale);
+        }
+    } else if (type === TERRAIN_TYPES.FENCE) {
+        // Draw fence posts and rails
+        ctx.fillStyle = COLORS.fencePost;
+
+        // Determine fence orientation based on neighbors
+        const isTopEdge = y > 0 && world.terrain[y-1] && world.terrain[y-1][x] !== TERRAIN_TYPES.FENCE;
+        const isBottomEdge = y < world.height - 1 && world.terrain[y+1] && world.terrain[y+1][x] !== TERRAIN_TYPES.FENCE;
+        const isLeftEdge = x > 0 && world.terrain[y][x-1] !== TERRAIN_TYPES.FENCE;
+        const isRightEdge = x < world.width - 1 && world.terrain[y][x+1] !== TERRAIN_TYPES.FENCE;
+
+        // Corner posts
+        ctx.fillRect(px + 2 * scale, py + 2 * scale, 4 * scale, size - 4 * scale);
+        ctx.fillRect(px + size - 6 * scale, py + 2 * scale, 4 * scale, size - 4 * scale);
+
+        // Horizontal rails
+        ctx.fillStyle = COLORS.fence;
+        ctx.fillRect(px, py + size * 0.25, size, 3 * scale);
+        ctx.fillRect(px, py + size * 0.6, size, 3 * scale);
+
+        // Post caps
+        ctx.fillStyle = COLORS.fencePost;
+        ctx.beginPath();
+        ctx.arc(px + 4 * scale, py + 2 * scale, 3 * scale, 0, Math.PI * 2);
+        ctx.arc(px + size - 4 * scale, py + 2 * scale, 3 * scale, 0, Math.PI * 2);
+        ctx.fill();
     }
 }
 
@@ -245,15 +295,19 @@ function drawBuilding(building) {
 }
 
 function drawHouseInterior(px, py, w, h, tileSize, scale) {
+    const offset = getOffset();
     const numBeds = Math.min(villagers.length, 5);
-    const bedWidth = tileSize * 0.6;
-    const bedHeight = tileSize * 1.0;
-    const bedSpacing = (w - bedWidth * numBeds) / (numBeds + 1);
+    const bedWidth = tileSize * 0.7;
+    const bedHeight = tileSize * 0.9;
 
-    // Draw beds
+    // Draw beds using getBedPosition() for accurate placement
     for (let i = 0; i < numBeds; i++) {
-        const bedX = px + bedSpacing + i * (bedWidth + bedSpacing);
-        const bedY = py + tileSize * 0.3;
+        const bedPos = getBedPosition(i);
+        // Convert world coordinates to pixel coordinates
+        const bedCenterX = offset.x + bedPos.x * tileSize;
+        const bedCenterY = offset.y + bedPos.y * tileSize;
+        const bedX = bedCenterX - bedWidth / 2;
+        const bedY = bedCenterY - bedHeight / 2;
 
         // Bed frame
         ctx.fillStyle = COLORS.bedFrame;
@@ -267,12 +321,13 @@ function drawHouseInterior(px, py, w, h, tileSize, scale) {
 
         // Pillow
         ctx.fillStyle = COLORS.bedPillow;
-        ctx.fillRect(bedX + 3 * scale, bedY + 3 * scale, bedWidth - 6 * scale, bedHeight * 0.15);
+        ctx.fillRect(bedX + 3 * scale, bedY + 3 * scale, bedWidth - 6 * scale, bedHeight * 0.18);
     }
 
-    // Draw fireplace/cooking area on right side
-    const fireplaceX = px + w - tileSize * 1.2;
-    const fireplaceY = py + h * 0.4;
+    // Draw fireplace on right side, upper area
+    const fireplacePos = HOUSE_POSITIONS.fireplace;
+    const fireplaceX = offset.x + fireplacePos.x * tileSize - tileSize * 0.45;
+    const fireplaceY = offset.y + fireplacePos.y * tileSize - tileSize * 0.4;
     const fireplaceW = tileSize * 0.9;
     const fireplaceH = tileSize * 0.8;
 
@@ -307,7 +362,7 @@ function drawHouseInterior(px, py, w, h, tileSize, scale) {
         ctx.fillRect(fireplaceX + 10 * scale, fireplaceY + fireplaceH - 12 * scale, fireplaceW - 20 * scale, 4 * scale);
     }
 
-    // Wood pile indicator
+    // Wood pile indicator next to fireplace
     if (gameStateRef && gameStateRef.fireplaceWood > 0) {
         ctx.fillStyle = COLORS.treeTrunk;
         const logs = Math.min(Math.ceil(gameStateRef.fireplaceWood / 2), 3);
@@ -315,6 +370,77 @@ function drawHouseInterior(px, py, w, h, tileSize, scale) {
             ctx.fillRect(fireplaceX - 15 * scale, fireplaceY + fireplaceH - 10 * scale - i * 6 * scale, 12 * scale, 5 * scale);
         }
     }
+
+    // Draw stove (kitchen area) - below fireplace
+    const stovePos = HOUSE_POSITIONS.stove;
+    const stoveX = offset.x + stovePos.x * tileSize - tileSize * 0.4;
+    const stoveY = offset.y + stovePos.y * tileSize - tileSize * 0.35;
+    const stoveW = tileSize * 0.8;
+    const stoveH = tileSize * 0.7;
+
+    // Stove body
+    ctx.fillStyle = COLORS.stoveMetal;
+    ctx.fillRect(stoveX, stoveY, stoveW, stoveH);
+
+    // Stove top (darker)
+    ctx.fillStyle = COLORS.stoveTop;
+    ctx.fillRect(stoveX + 3 * scale, stoveY + 3 * scale, stoveW - 6 * scale, stoveH * 0.4);
+
+    // Burner circles
+    ctx.strokeStyle = '#2a2a2a';
+    ctx.lineWidth = 2 * scale;
+    ctx.beginPath();
+    ctx.arc(stoveX + stoveW * 0.3, stoveY + stoveH * 0.25, 6 * scale, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(stoveX + stoveW * 0.7, stoveY + stoveH * 0.25, 6 * scale, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Oven door
+    ctx.fillStyle = '#3a3a3a';
+    ctx.fillRect(stoveX + 5 * scale, stoveY + stoveH * 0.5, stoveW - 10 * scale, stoveH * 0.4);
+    // Oven handle
+    ctx.fillStyle = '#6a6a6a';
+    ctx.fillRect(stoveX + stoveW * 0.3, stoveY + stoveH * 0.55, stoveW * 0.4, 3 * scale);
+
+    // Draw knitting station - left side of house
+    const knittingPos = HOUSE_POSITIONS.knittingStation;
+    const knittingX = offset.x + knittingPos.x * tileSize - tileSize * 0.3;
+    const knittingY = offset.y + knittingPos.y * tileSize - tileSize * 0.35;
+    const knittingW = tileSize * 0.7;
+    const knittingH = tileSize * 0.7;
+
+    // Knitting chair/stool
+    ctx.fillStyle = COLORS.bedFrame;
+    ctx.fillRect(knittingX, knittingY + knittingH * 0.3, knittingW, knittingH * 0.5);
+
+    // Yarn basket
+    ctx.fillStyle = '#7a6a50';
+    ctx.beginPath();
+    ctx.ellipse(knittingX + knittingW * 0.5, knittingY + knittingH * 0.15, knittingW * 0.35, knittingH * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Yarn balls in basket
+    ctx.fillStyle = COLORS.yarn;
+    ctx.beginPath();
+    ctx.arc(knittingX + knittingW * 0.35, knittingY + knittingH * 0.1, 5 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#5070c4';
+    ctx.beginPath();
+    ctx.arc(knittingX + knittingW * 0.6, knittingY + knittingH * 0.12, 4 * scale, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Knitting needles
+    ctx.strokeStyle = COLORS.needles;
+    ctx.lineWidth = 2 * scale;
+    ctx.beginPath();
+    ctx.moveTo(knittingX + knittingW * 0.2, knittingY);
+    ctx.lineTo(knittingX + knittingW * 0.5, knittingY + knittingH * 0.3);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(knittingX + knittingW * 0.8, knittingY);
+    ctx.lineTo(knittingX + knittingW * 0.5, knittingY + knittingH * 0.3);
+    ctx.stroke();
 }
 
 function drawStorageInterior(px, py, w, h, tileSize, scale) {
@@ -818,6 +944,7 @@ function drawVillager(villager) {
         case 'warming': stateEmoji = '🔥'; break;
         case 'dressing': stateEmoji = '🧥'; break;
         case 'stoking': stateEmoji = '🔥'; break;
+        case 'firefighting': stateEmoji = '🧯'; break;
     }
 
     if (stateEmoji) {
@@ -830,6 +957,23 @@ function drawVillager(villager) {
     if (villager.warmth < 30) {
         ctx.font = `${10 * scale}px Arial`;
         ctx.fillText('🥶', centerX + 15 * scale, bodyTop);
+    }
+
+    // Water bucket indicator (for firefighting)
+    if (villager.hasWater) {
+        ctx.fillStyle = COLORS.bucket;
+        const bucketX = centerX - bodyWidth / 2 - 8 * scale;
+        const bucketY = bodyTop + headRadius + 12 * scale;
+        ctx.beginPath();
+        ctx.moveTo(bucketX - 4 * scale, bucketY);
+        ctx.lineTo(bucketX - 5 * scale, bucketY + 8 * scale);
+        ctx.lineTo(bucketX + 5 * scale, bucketY + 8 * scale);
+        ctx.lineTo(bucketX + 4 * scale, bucketY);
+        ctx.closePath();
+        ctx.fill();
+        // Water in bucket
+        ctx.fillStyle = COLORS.water;
+        ctx.fillRect(bucketX - 3 * scale, bucketY + 2 * scale, 6 * scale, 4 * scale);
     }
 
     // Name
@@ -855,6 +999,114 @@ function drawVillager(villager) {
 
         ctx.font = `${8 * scale}px Arial`;
         ctx.fillText(invIcon, centerX + bodyWidth / 2 + 12 * scale, bodyTop + headRadius + 18 * scale);
+    }
+}
+
+function drawFireOutbreak() {
+    if (!world.fireOutbreak) return;
+
+    const scale = getScale();
+    const offset = getOffset();
+    const tileSize = CONFIG.TILE_SIZE * scale;
+
+    const fire = world.fireOutbreak;
+    const building = fire.building;
+
+    // Calculate building center
+    const px = offset.x + (building.x + building.w / 2) * tileSize;
+    const py = offset.y + (building.y + building.h / 2) * tileSize;
+
+    // Fire intensity affects size
+    const intensity = fire.intensity / 100;
+
+    // Draw fire glow
+    const gradient = ctx.createRadialGradient(px, py, 0, px, py, tileSize * 2 * intensity);
+    gradient.addColorStop(0, 'rgba(255, 100, 30, 0.6)');
+    gradient.addColorStop(0.5, 'rgba(255, 50, 20, 0.3)');
+    gradient.addColorStop(1, 'rgba(255, 30, 10, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(px - tileSize * 2, py - tileSize * 2, tileSize * 4, tileSize * 4);
+
+    // Draw animated flames
+    const time = Date.now() / 100;
+    ctx.fillStyle = COLORS.fireRed;
+    for (let i = 0; i < 8 * intensity; i++) {
+        const angle = (i / 8) * Math.PI * 2 + time * 0.1;
+        const dist = tileSize * 0.5 * intensity;
+        const flameX = px + Math.cos(angle) * dist;
+        const flameY = py + Math.sin(angle) * dist;
+        const flameHeight = (15 + Math.sin(time + i) * 5) * scale * intensity;
+
+        ctx.beginPath();
+        ctx.moveTo(flameX - 5 * scale, flameY);
+        ctx.quadraticCurveTo(flameX - 3 * scale, flameY - flameHeight * 0.5, flameX, flameY - flameHeight);
+        ctx.quadraticCurveTo(flameX + 3 * scale, flameY - flameHeight * 0.5, flameX + 5 * scale, flameY);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // Inner orange flames
+    ctx.fillStyle = COLORS.fireOrange;
+    for (let i = 0; i < 5 * intensity; i++) {
+        const angle = (i / 5) * Math.PI * 2 + time * 0.15;
+        const dist = tileSize * 0.3 * intensity;
+        const flameX = px + Math.cos(angle) * dist;
+        const flameY = py + Math.sin(angle) * dist;
+        const flameHeight = (12 + Math.sin(time + i * 2) * 4) * scale * intensity;
+
+        ctx.beginPath();
+        ctx.moveTo(flameX - 4 * scale, flameY);
+        ctx.quadraticCurveTo(flameX - 2 * scale, flameY - flameHeight * 0.5, flameX, flameY - flameHeight);
+        ctx.quadraticCurveTo(flameX + 2 * scale, flameY - flameHeight * 0.5, flameX + 4 * scale, flameY);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // Yellow/white core
+    ctx.fillStyle = COLORS.fireYellow;
+    for (let i = 0; i < 3; i++) {
+        const flameX = px + (Math.sin(time + i) * 8 * scale);
+        const flameY = py;
+        const flameHeight = (10 + Math.sin(time * 2 + i) * 3) * scale * intensity;
+
+        ctx.beginPath();
+        ctx.moveTo(flameX - 3 * scale, flameY);
+        ctx.quadraticCurveTo(flameX, flameY - flameHeight * 0.7, flameX, flameY - flameHeight);
+        ctx.quadraticCurveTo(flameX, flameY - flameHeight * 0.7, flameX + 3 * scale, flameY);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // Smoke particles
+    ctx.fillStyle = 'rgba(50, 50, 50, 0.4)';
+    for (let i = 0; i < 5; i++) {
+        const smokeX = px + Math.sin(time * 0.5 + i * 2) * 20 * scale;
+        const smokeY = py - tileSize * (0.8 + i * 0.3) - Math.sin(time + i) * 10 * scale;
+        const smokeSize = (8 + i * 3) * scale * intensity;
+        ctx.beginPath();
+        ctx.arc(smokeX, smokeY, smokeSize, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Fire warning icon
+    ctx.font = `bold ${20 * scale}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ff3030';
+    ctx.fillText('🔥', px, py - tileSize * 1.5);
+
+    // Progress bar showing extinguish progress
+    if (fire.progress > 0) {
+        const barWidth = tileSize * 1.5;
+        const barHeight = 6 * scale;
+        const barX = px - barWidth / 2;
+        const barY = py + tileSize;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+
+        ctx.fillStyle = '#4a9aff';
+        const progress = fire.progress / CONFIG.FIRE_EXTINGUISH_TIME;
+        ctx.fillRect(barX, barY, barWidth * progress, barHeight);
     }
 }
 
@@ -913,6 +1165,9 @@ export function render() {
 
     // Buildings
     world.buildings.forEach(drawBuilding);
+
+    // Fire outbreak (draw before villagers so they appear on top)
+    drawFireOutbreak();
 
     // Villagers
     villagers.forEach(drawVillager);

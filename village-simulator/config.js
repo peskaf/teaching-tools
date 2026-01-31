@@ -15,13 +15,11 @@ export const CONFIG = {
     HUNGER_RESTORE: 40, // restored per bread eaten
     HUNGER_THRESHOLD: 40, // below this, villager is hungry
 
-    // Temperature/Warmth system
-    WARMTH_DRAIN_BASE: 0.01, // per tick base drain
-    WARMTH_DRAIN_WINTER: 0.05, // extra drain in winter
-    WARMTH_RESTORE_FIRE: 0.2, // restored per tick near fire
-    WARMTH_RESTORE_SWEATER: 0.5, // reduced drain when wearing sweater
+    // Temperature/Warmth system - now location-based, not time-based
+    WARMTH_COMFORTABLE: 70, // Target warmth when comfortable
     WARMTH_THRESHOLD: 40, // below this, villager is cold
-    FIRE_WOOD_CONSUMPTION: 0.1, // wood consumed per tick when fire is lit
+    WARMTH_CHANGE_RATE: 0.3, // How fast warmth changes toward target
+    FIRE_WOOD_CONSUMPTION: 0.05, // wood consumed per tick when fire is lit
 
     // Seasons
     SEASON_LENGTH: 7, // days per season
@@ -49,6 +47,10 @@ export const CONFIG = {
     FISH_TIME: 60, // ticks to catch a fish (variable with luck)
     COOK_FISH_TIME: 40, // ticks to cook fish
     FISH_HUNGER_RESTORE: 30, // hunger restored by cooked fish
+
+    // Fire outbreak
+    FIRE_SPREAD_CHANCE: 0.0005, // Chance per tick for fire to break out
+    FIRE_EXTINGUISH_TIME: 30, // Ticks to extinguish fire with water
 };
 
 export const TERRAIN_TYPES = {
@@ -59,25 +61,50 @@ export const TERRAIN_TYPES = {
     PATH: 4,
     FLOOR: 5,
     FOREST: 6,
-    POND: 7
+    POND: 7,
+    FENCE: 8
 };
 
 export const LOCATIONS = {
-    // House now includes kitchen/fireplace inside
-    house: { x: 4, y: 3, w: 5, h: 4 },
-    storage: { x: 16, y: 4, w: 3, h: 3 },
-    well: { x: 11, y: 6, w: 2, h: 2 },
-    mill: { x: 1, y: 7, w: 3, h: 3 },
-    // Fields
-    field1: { x: 3, y: 11, w: 5, h: 4 },
-    field2: { x: 10, y: 11, w: 5, h: 4 },
-    field3: { x: 17, y: 11, w: 4, h: 4 },
+    // House with fireplace, stove, and knitting area
+    house: { x: 4, y: 3, w: 6, h: 4, doorSide: 'bottom' },
+    storage: { x: 17, y: 4, w: 3, h: 3, doorSide: 'bottom' },
+    well: { x: 11, y: 5, w: 2, h: 2 },
+    mill: { x: 1, y: 5, w: 3, h: 3, doorSide: 'bottom' },
+    // Fields (only 2 now, pasture replaces one)
+    field1: { x: 5, y: 11, w: 5, h: 4 },
+    field2: { x: 12, y: 11, w: 5, h: 4 },
     // Forest area for trees
     forest: { x: 19, y: 1, w: 4, h: 5 },
-    // Sheep pasture
-    pasture: { x: 1, y: 12, w: 2, h: 3 },
-    // Fishing pond
-    pond: { x: 13, y: 1, w: 3, h: 3 }
+    // Sheep pasture with fence (replaces field3)
+    pasture: { x: 19, y: 11, w: 4, h: 4 },
+    // Fishing pond - larger and better positioned
+    pond: { x: 12, y: 1, w: 4, h: 3 }
+};
+
+// Door positions for pathfinding (tile coordinates of door entrance)
+export const DOOR_POSITIONS = {
+    house: { x: LOCATIONS.house.x + LOCATIONS.house.w / 2, y: LOCATIONS.house.y + LOCATIONS.house.h },
+    storage: { x: LOCATIONS.storage.x + LOCATIONS.storage.w / 2, y: LOCATIONS.storage.y + LOCATIONS.storage.h },
+    mill: { x: LOCATIONS.mill.x + LOCATIONS.mill.w / 2, y: LOCATIONS.mill.y + LOCATIONS.mill.h }
+};
+
+// Bed positions within house (in tile coordinates relative to house origin)
+export function getBedPosition(villagerIndex) {
+    const numBeds = 5;
+    const bedWidth = 0.7;
+    const totalBedsWidth = numBeds * bedWidth;
+    const spacing = (LOCATIONS.house.w - totalBedsWidth - 0.5) / (numBeds + 1); // -0.5 for wall margin
+    const bedX = LOCATIONS.house.x + 0.3 + spacing + villagerIndex * (bedWidth + spacing) + bedWidth / 2;
+    const bedY = LOCATIONS.house.y + 1.0; // Second row in house
+    return { x: bedX, y: bedY };
+}
+
+// Interior positions within house
+export const HOUSE_POSITIONS = {
+    fireplace: { x: LOCATIONS.house.x + LOCATIONS.house.w - 1.2, y: LOCATIONS.house.y + 1.5 },
+    stove: { x: LOCATIONS.house.x + LOCATIONS.house.w - 1.2, y: LOCATIONS.house.y + 2.8 },
+    knittingStation: { x: LOCATIONS.house.x + 1, y: LOCATIONS.house.y + 2.8 }
 };
 
 // Villager roles (for educational purposes - students assign different trees to each)
