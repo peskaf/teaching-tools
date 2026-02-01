@@ -53,7 +53,7 @@ class Terminal {
 
     printWelcome() {
         const welcome = `<span class="output-success">Linux Emulator v1.0</span>
-<span class="output-muted">Napiš</span> <span class="output-cyan">help</span> <span class="output-muted">pro seznam příkazů nebo</span> <span class="output-cyan">cat readme.txt</span> <span class="output-muted">pro začátek.</span>
+<span class="output-muted">Type</span> <span class="output-cyan">help</span> <span class="output-muted">for a list of commands or</span> <span class="output-cyan">cat readme.txt</span> <span class="output-muted">to get started.</span>
 `;
         this.printHtml(welcome);
     }
@@ -99,6 +99,10 @@ class Terminal {
     handleSudoPassword(password) {
         this.inputEl.type = 'text';
         this.awaitingSudoPassword = false;
+        this.promptEl.style.display = '';  // Show prompt again
+
+        // Print masked password input (show that something was typed)
+        this.printLine('');
 
         const result = fs.trySudo(password);
 
@@ -114,7 +118,7 @@ class Terminal {
 
         if (args[0].toLowerCase() === 'su') {
             // Stay as root
-            this.printSuccess('Přepnuto do režimu superuživatele. Pro návrat napiš "exit".');
+            this.printSuccess('Switched to superuser mode. Type "exit" to return.');
             this.updatePrompt();
         } else {
             // Run single command as root
@@ -124,7 +128,7 @@ class Terminal {
             if (this.commands[command]) {
                 this.commands[command].call(this, cmdArgs);
             } else {
-                this.printError(`${command}: příkaz nenalezen`);
+                this.printError(`${command}: command not found`);
             }
 
             // Return to normal user after single command
@@ -206,12 +210,21 @@ class Terminal {
         // Execute
         if (this.commands[command]) {
             try {
+                // Handle --help flag for all commands
+                if (args.includes('--help')) {
+                    if (this.manPages[command]) {
+                        this.commands.man.call(this, [command]);
+                    } else {
+                        this.printLine(`${command}: no help available`);
+                    }
+                    return;
+                }
                 this.commands[command].call(this, args);
             } catch (e) {
-                this.printError(`Chyba: ${e.message}`);
+                this.printError(`Error: ${e.message}`);
             }
         } else {
-            this.printError(`${command}: příkaz nenalezen`);
+            this.printError(`${command}: command not found`);
         }
 
         this.updatePrompt();
@@ -257,187 +270,187 @@ class Terminal {
     manPages = {
         ls: {
             name: 'ls',
-            synopsis: 'ls [VOLBY]... [SOUBOR]...',
-            description: 'Vypíše informace o souborech (standardně v aktuálním adresáři).',
+            synopsis: 'ls [OPTIONS]... [FILE]...',
+            description: 'List information about files (the current directory by default).',
             options: [
-                ['-a, --all', 'nezakrývat položky začínající na .'],
-                ['-l', 'použít dlouhý formát výpisu'],
-                ['-la', 'kombinace -l a -a']
+                ['-a, --all', 'do not ignore entries starting with .'],
+                ['-l', 'use a long listing format'],
+                ['-la', 'combination of -l and -a']
             ]
         },
         cd: {
             name: 'cd',
-            synopsis: 'cd [adresář]',
-            description: 'Změní aktuální pracovní adresář na zadaný adresář. Bez argumentu přejde do domovského adresáře.',
+            synopsis: 'cd [directory]',
+            description: 'Change the current working directory to the specified directory. Without arguments, changes to home directory.',
             options: [
-                ['..', 'přejít do nadřazeného adresáře'],
-                ['~', 'přejít do domovského adresáře'],
-                ['-', 'přejít do předchozího adresáře']
+                ['..', 'go to parent directory'],
+                ['~', 'go to home directory'],
+                ['-', 'go to previous directory']
             ]
         },
         pwd: {
             name: 'pwd',
             synopsis: 'pwd',
-            description: 'Vypíše úplnou cestu k aktuálnímu pracovnímu adresáři.',
+            description: 'Print the full path of the current working directory.',
             options: []
         },
         cat: {
             name: 'cat',
-            synopsis: 'cat [SOUBOR]...',
-            description: 'Spojí soubory a vypíše je na standardní výstup.',
+            synopsis: 'cat [FILE]...',
+            description: 'Concatenate files and print on the standard output.',
             options: []
         },
         grep: {
             name: 'grep',
-            synopsis: 'grep [VOLBY] VZOR [SOUBOR]...',
-            description: 'Hledá ve vstupních souborech řádky odpovídající zadanému vzoru.',
+            synopsis: 'grep [OPTIONS] PATTERN [FILE]...',
+            description: 'Search for lines matching a pattern in input files.',
             options: [
-                ['-i', 'ignorovat rozdíl mezi velkými a malými písmeny'],
-                ['-r', 'rekurzivně prohledat adresáře'],
-                ['-n', 'zobrazit čísla řádků']
+                ['-i', 'ignore case distinctions'],
+                ['-r', 'search directories recursively'],
+                ['-n', 'print line numbers']
             ]
         },
         mkdir: {
             name: 'mkdir',
-            synopsis: 'mkdir ADRESÁŘ...',
-            description: 'Vytvoří adresáře, pokud ještě neexistují.',
+            synopsis: 'mkdir DIRECTORY...',
+            description: 'Create directories if they do not already exist.',
             options: []
         },
         rm: {
             name: 'rm',
-            synopsis: 'rm [VOLBY]... SOUBOR...',
-            description: 'Odstraní soubory nebo adresáře.',
+            synopsis: 'rm [OPTIONS]... FILE...',
+            description: 'Remove files or directories.',
             options: [
-                ['-r, -R', 'rekurzivně odstranit adresáře a jejich obsah'],
-                ['-f', 'ignorovat neexistující soubory']
+                ['-r, -R', 'remove directories and their contents recursively'],
+                ['-f', 'ignore nonexistent files']
             ]
         },
         touch: {
             name: 'touch',
-            synopsis: 'touch SOUBOR...',
-            description: 'Aktualizuje čas přístupu a modifikace souboru. Pokud soubor neexistuje, vytvoří prázdný soubor.',
+            synopsis: 'touch FILE...',
+            description: 'Update access and modification times of a file. If file does not exist, create an empty file.',
             options: []
         },
         stat: {
             name: 'stat',
-            synopsis: 'stat SOUBOR...',
-            description: 'Zobrazí podrobné informace o souboru nebo adresáři.',
+            synopsis: 'stat FILE...',
+            description: 'Display detailed information about a file or directory.',
             options: []
         },
         file: {
             name: 'file',
-            synopsis: 'file SOUBOR...',
-            description: 'Určí typ souboru.',
+            synopsis: 'file FILE...',
+            description: 'Determine file type.',
             options: []
         },
         hexdump: {
             name: 'hexdump',
-            synopsis: 'hexdump [VOLBY] SOUBOR',
-            description: 'Zobrazí obsah souboru v hexadecimálním formátu.',
+            synopsis: 'hexdump [OPTIONS] FILE',
+            description: 'Display file contents in hexadecimal format.',
             options: [
-                ['-C', 'kanonický výstup s ASCII reprezentací']
+                ['-C', 'canonical output with ASCII representation']
             ]
         },
         head: {
             name: 'head',
-            synopsis: 'head [VOLBY] [SOUBOR]...',
-            description: 'Vypíše prvních 10 řádků souboru.',
+            synopsis: 'head [OPTIONS] [FILE]...',
+            description: 'Print the first 10 lines of a file.',
             options: [
-                ['-n NUM', 'vypsat prvních NUM řádků']
+                ['-n NUM', 'print the first NUM lines']
             ]
         },
         tail: {
             name: 'tail',
-            synopsis: 'tail [VOLBY] [SOUBOR]...',
-            description: 'Vypíše posledních 10 řádků souboru.',
+            synopsis: 'tail [OPTIONS] [FILE]...',
+            description: 'Print the last 10 lines of a file.',
             options: [
-                ['-n NUM', 'vypsat posledních NUM řádků']
+                ['-n NUM', 'print the last NUM lines']
             ]
         },
         wc: {
             name: 'wc',
-            synopsis: 'wc [VOLBY] [SOUBOR]...',
-            description: 'Vypíše počet řádků, slov a bajtů.',
+            synopsis: 'wc [OPTIONS] [FILE]...',
+            description: 'Print newline, word, and byte counts.',
             options: [
-                ['-l', 'vypsat pouze počet řádků'],
-                ['-w', 'vypsat pouze počet slov'],
-                ['-c', 'vypsat pouze počet bajtů']
+                ['-l', 'print only the newline count'],
+                ['-w', 'print only the word count'],
+                ['-c', 'print only the byte count']
             ]
         },
         echo: {
             name: 'echo',
             synopsis: 'echo [TEXT]...',
-            description: 'Vypíše text na standardní výstup.',
+            description: 'Print text to standard output.',
             options: []
         },
         whoami: {
             name: 'whoami',
             synopsis: 'whoami',
-            description: 'Vypíše uživatelské jméno aktuálního uživatele.',
+            description: 'Print the current user name.',
             options: []
         },
         uname: {
             name: 'uname',
-            synopsis: 'uname [VOLBY]',
-            description: 'Vypíše informace o systému.',
+            synopsis: 'uname [OPTIONS]',
+            description: 'Print system information.',
             options: [
-                ['-a', 'vypsat všechny informace'],
-                ['-s', 'název jádra'],
-                ['-r', 'verze jádra'],
-                ['-m', 'architektura procesoru']
+                ['-a', 'print all information'],
+                ['-s', 'kernel name'],
+                ['-r', 'kernel release'],
+                ['-m', 'machine hardware name']
             ]
         },
         uptime: {
             name: 'uptime',
             synopsis: 'uptime',
-            description: 'Zobrazí jak dlouho systém běží.',
+            description: 'Show how long the system has been running.',
             options: []
         },
         clear: {
             name: 'clear',
             synopsis: 'clear',
-            description: 'Vymaže obrazovku terminálu.',
+            description: 'Clear the terminal screen.',
             options: []
         },
         history: {
             name: 'history',
             synopsis: 'history',
-            description: 'Zobrazí historii zadaných příkazů.',
+            description: 'Display command history.',
             options: []
         },
         help: {
             name: 'help',
             synopsis: 'help',
-            description: 'Zobrazí seznam dostupných příkazů.',
+            description: 'Display list of available commands.',
             options: []
         },
         find: {
             name: 'find',
-            synopsis: 'find [cesta] [výraz]',
-            description: 'Hledá soubory v adresářové struktuře.',
+            synopsis: 'find [path] [expression]',
+            description: 'Search for files in a directory hierarchy.',
             options: [
-                ['-name VZOR', 'hledá soubory podle jména']
+                ['-name PATTERN', 'search for files by name']
             ]
         },
         sudo: {
             name: 'sudo',
-            synopsis: 'sudo [příkaz]',
-            description: 'Spustí příkaz s právy superuživatele (root). Vyžaduje heslo.',
+            synopsis: 'sudo [command]',
+            description: 'Execute a command as superuser (root). Requires password.',
             options: [
-                ['su', 'přepne do režimu root (zůstane jako root)'],
-                ['[příkaz]', 'spustí jednorázově příkaz jako root']
+                ['su', 'switch to root mode (stay as root)'],
+                ['[command]', 'run a single command as root']
             ]
         },
         exit: {
             name: 'exit',
             synopsis: 'exit',
-            description: 'Ukončí aktuální shell. V sudo režimu se vrátí k běžnému uživateli.',
+            description: 'Exit the current shell. In sudo mode, returns to regular user.',
             options: []
         },
         id: {
             name: 'id',
             synopsis: 'id',
-            description: 'Zobrazí informace o aktuálním uživateli (UID, GID).',
+            description: 'Display information about current user (UID, GID).',
             options: []
         }
     };
@@ -446,56 +459,56 @@ class Terminal {
     commands = {
         help: function() {
             const help = `
-<span class="man-section">DOSTUPNÉ PŘÍKAZY</span>
+<span class="man-section">AVAILABLE COMMANDS</span>
 
-<span class="man-header">Navigace a soubory:</span>
-  <span class="man-option">ls</span>       Výpis obsahu adresáře
-  <span class="man-option">cd</span>       Změna adresáře
-  <span class="man-option">pwd</span>      Aktuální adresář
-  <span class="man-option">cat</span>      Zobrazení obsahu souboru
-  <span class="man-option">head</span>     Prvních N řádků souboru
-  <span class="man-option">tail</span>     Posledních N řádků souboru
+<span class="man-header">Navigation and Files:</span>
+  <span class="man-option">ls</span>       List directory contents
+  <span class="man-option">cd</span>       Change directory
+  <span class="man-option">pwd</span>      Print working directory
+  <span class="man-option">cat</span>      Display file contents
+  <span class="man-option">head</span>     First N lines of file
+  <span class="man-option">tail</span>     Last N lines of file
 
-<span class="man-header">Práce se soubory:</span>
-  <span class="man-option">mkdir</span>    Vytvoření adresáře
-  <span class="man-option">touch</span>    Vytvoření souboru
-  <span class="man-option">rm</span>       Smazání souboru/adresáře
-  <span class="man-option">cp</span>       Kopírování
-  <span class="man-option">mv</span>       Přesun/přejmenování
+<span class="man-header">File Operations:</span>
+  <span class="man-option">mkdir</span>    Create directory
+  <span class="man-option">touch</span>    Create file
+  <span class="man-option">rm</span>       Remove file/directory
+  <span class="man-option">cp</span>       Copy
+  <span class="man-option">mv</span>       Move/rename
 
-<span class="man-header">Vyhledávání:</span>
-  <span class="man-option">grep</span>     Hledání textu v souborech
-  <span class="man-option">find</span>     Hledání souborů
+<span class="man-header">Search:</span>
+  <span class="man-option">grep</span>     Search text in files
+  <span class="man-option">find</span>     Find files
 
-<span class="man-header">Informace:</span>
-  <span class="man-option">stat</span>     Informace o souboru
-  <span class="man-option">file</span>     Typ souboru
-  <span class="man-option">wc</span>       Počet řádků/slov/znaků
-  <span class="man-option">hexdump</span>  Hexadecimální výpis
+<span class="man-header">Information:</span>
+  <span class="man-option">stat</span>     File information
+  <span class="man-option">file</span>     File type
+  <span class="man-option">wc</span>       Line/word/byte count
+  <span class="man-option">hexdump</span>  Hexadecimal dump
 
-<span class="man-header">Systém:</span>
-  <span class="man-option">whoami</span>   Aktuální uživatel
-  <span class="man-option">id</span>       Informace o uživateli
-  <span class="man-option">uname</span>    Informace o systému
-  <span class="man-option">uptime</span>   Doba běhu systému
-  <span class="man-option">echo</span>     Výpis textu
-  <span class="man-option">history</span>  Historie příkazů
-  <span class="man-option">clear</span>    Vyčištění obrazovky
+<span class="man-header">System:</span>
+  <span class="man-option">whoami</span>   Current user
+  <span class="man-option">id</span>       User information
+  <span class="man-option">uname</span>    System information
+  <span class="man-option">uptime</span>   System uptime
+  <span class="man-option">echo</span>     Print text
+  <span class="man-option">history</span>  Command history
+  <span class="man-option">clear</span>    Clear screen
 
-<span class="man-header">Oprávnění:</span>
-  <span class="man-option">sudo</span>     Spustit příkaz jako root
-  <span class="man-option">sudo su</span>  Přepnout do režimu root
-  <span class="man-option">exit</span>     Opustit režim root
+<span class="man-header">Permissions:</span>
+  <span class="man-option">sudo</span>     Run command as root
+  <span class="man-option">sudo su</span>  Switch to root mode
+  <span class="man-option">exit</span>     Exit root mode
 
-<span class="output-muted">Pro nápovědu k příkazu: man PŘÍKAZ</span>
-<span class="output-muted">Tab = doplnění, ↑↓ = historie, Ctrl+L = clear</span>
+<span class="output-muted">For command help: man COMMAND or COMMAND --help</span>
+<span class="output-muted">Tab = autocomplete, ↑↓ = history, Ctrl+L = clear</span>
 `;
             this.printHtml(help);
         },
 
         man: function(args) {
             if (args.length === 0) {
-                this.printError('Jaký manuál chcete zobrazit?');
+                this.printError('What manual page do you want?');
                 return;
             }
 
@@ -503,25 +516,25 @@ class Terminal {
             const page = this.manPages[cmd];
 
             if (!page) {
-                this.printError(`Žádný manuál pro ${cmd}`);
+                this.printError(`No manual entry for ${cmd}`);
                 return;
             }
 
             let output = `
 <span class="man-header">${page.name.toUpperCase()}(1)</span>                    User Commands
 
-<span class="man-section">NÁZEV</span>
+<span class="man-section">NAME</span>
        ${page.name} - ${page.description.split('.')[0]}
 
-<span class="man-section">POUŽITÍ</span>
+<span class="man-section">SYNOPSIS</span>
        ${page.synopsis}
 
-<span class="man-section">POPIS</span>
+<span class="man-section">DESCRIPTION</span>
        ${page.description}
 `;
 
             if (page.options.length > 0) {
-                output += `\n<span class="man-section">VOLBY</span>\n`;
+                output += `\n<span class="man-section">OPTIONS</span>\n`;
                 for (const [opt, desc] of page.options) {
                     output += `       <span class="man-option">${opt}</span>\n              ${desc}\n`;
                 }
@@ -589,7 +602,7 @@ class Terminal {
 
         cat: function(args) {
             if (args.length === 0) {
-                this.printError('cat: chybí operand');
+                this.printError('cat: missing operand');
                 return;
             }
 
@@ -598,7 +611,7 @@ class Terminal {
                 if (result.error) {
                     this.printError(result.error);
                 } else if (result.binary) {
-                    this.printError(`cat: ${arg}: Binární soubor (použij hexdump -C)`);
+                    this.printError(`cat: ${arg}: Binary file (use hexdump -C)`);
                 } else {
                     this.printLine(result.content);
                 }
@@ -619,7 +632,7 @@ class Terminal {
             }
 
             if (!file) {
-                this.printError('head: chybí operand');
+                this.printError('head: missing operand');
                 return;
             }
 
@@ -646,7 +659,7 @@ class Terminal {
             }
 
             if (!file) {
-                this.printError('tail: chybí operand');
+                this.printError('tail: missing operand');
                 return;
             }
 
@@ -662,7 +675,7 @@ class Terminal {
 
         mkdir: function(args) {
             if (args.length === 0) {
-                this.printError('mkdir: chybí operand');
+                this.printError('mkdir: missing operand');
                 return;
             }
 
@@ -676,7 +689,7 @@ class Terminal {
 
         touch: function(args) {
             if (args.length === 0) {
-                this.printError('touch: chybí operand');
+                this.printError('touch: missing operand');
                 return;
             }
 
@@ -703,7 +716,7 @@ class Terminal {
             }
 
             if (files.length === 0) {
-                this.printError('rm: chybí operand');
+                this.printError('rm: missing operand');
                 return;
             }
 
@@ -735,7 +748,7 @@ class Terminal {
             }
 
             if (!pattern) {
-                this.printError('grep: chybí vzor');
+                this.printError('grep: missing pattern');
                 return;
             }
 
@@ -806,7 +819,7 @@ class Terminal {
 
             const startNode = fs.getNode(searchPath);
             if (!startNode) {
-                this.printError(`find: '${searchPath}': Adresář neexistuje`);
+                this.printError(`find: '${searchPath}': No such directory`);
                 return;
             }
 
@@ -823,7 +836,7 @@ class Terminal {
 
         stat: function(args) {
             if (args.length === 0) {
-                this.printError('stat: chybí operand');
+                this.printError('stat: missing operand');
                 return;
             }
 
@@ -833,18 +846,18 @@ class Terminal {
                 if (result.error) {
                     this.printError(result.error);
                 } else {
-                    const typeStr = result.type === 'dir' ? 'adresář' : 'běžný soubor';
-                    this.printHtml(`  Soubor: <span class="output-cyan">${result.name}</span>
-  Velikost: ${result.size}       Bloky: ${result.blocks}       ${typeStr}
-Přístup: (${result.permissions})  Uid: ${result.owner}   Gid: ${result.group}
-Změněno: ${result.modified}`);
+                    const typeStr = result.type === 'dir' ? 'directory' : 'regular file';
+                    this.printHtml(`  File: <span class="output-cyan">${result.name}</span>
+  Size: ${result.size}       Blocks: ${result.blocks}       ${typeStr}
+Access: (${result.permissions})  Uid: ${result.owner}   Gid: ${result.group}
+Modify: ${result.modified}`);
                 }
             }
         },
 
         file: function(args) {
             if (args.length === 0) {
-                this.printError('file: chybí operand');
+                this.printError('file: missing operand');
                 return;
             }
 
@@ -872,7 +885,7 @@ Změněno: ${result.modified}`);
             }
 
             if (!file) {
-                this.printError('hexdump: chybí operand');
+                this.printError('hexdump: missing operand');
                 return;
             }
 
@@ -937,7 +950,7 @@ Změněno: ${result.modified}`);
             }
 
             if (files.length === 0) {
-                this.printError('wc: chybí operand');
+                this.printError('wc: missing operand');
                 return;
             }
 
@@ -1016,17 +1029,17 @@ Změněno: ${result.modified}`);
         exit: function() {
             if (fs.isRoot) {
                 fs.exitSudo();
-                this.printLine('Opouštím režim superuživatele.');
+                this.printLine('Leaving superuser mode.');
                 this.updatePrompt();
             } else {
-                this.printLine('Nelze ukončit - toto je webový emulátor :)');
+                this.printLine('Cannot exit - this is a web emulator :)');
             }
         },
 
         sudo: function(args) {
             if (args.length === 0) {
-                this.printError('sudo: chybí příkaz');
-                this.printLine('Použití: sudo [příkaz] nebo sudo su');
+                this.printError('sudo: missing command');
+                this.printLine('Usage: sudo [command] or sudo su');
                 return;
             }
 
@@ -1037,16 +1050,17 @@ Změněno: ${result.modified}`);
                 if (this.commands[command]) {
                     this.commands[command].call(this, cmdArgs);
                 } else {
-                    this.printError(`${command}: příkaz nenalezen`);
+                    this.printError(`${command}: command not found`);
                 }
                 return;
             }
 
-            // Ask for password
-            this.printLine('[sudo] heslo pro ' + fs.user + ': ');
+            // Ask for password - show inline prompt
+            this.printHtml(`<span class="output-muted">[sudo] password for ${fs.user}:</span>`);
             this.awaitingSudoPassword = true;
             this.sudoCommand = args;
             this.inputEl.type = 'password';
+            this.promptEl.style.display = 'none';  // Hide the command prompt
         },
 
         id: function() {
@@ -1067,7 +1081,7 @@ Změněno: ${result.modified}`);
         },
 
         '.': function(args) {
-            this.printError('.: chybí argument (název souboru)');
+            this.printError('.: missing argument (filename)');
         }
     };
 
