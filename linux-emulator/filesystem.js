@@ -52,20 +52,20 @@ class FileSystem {
                                             group: 'student',
                                             modified: '2024-01-18 09:15:00',
                                             size: 247,
-                                            content: `Poznámky z přednášky
-====================
+                                            content: `Lecture Notes
+=============
 
-Linux je open-source operační systém.
-Příkazová řádka je mocný nástroj.
+Linux is an open-source operating system.
+The command line is a powerful tool.
 
-Důležité příkazy:
-- ls    = výpis souborů
-- cd    = změna adresáře
-- cat   = zobrazení obsahu
-- grep  = hledání v textu
+Important commands:
+- ls    = list files
+- cd    = change directory
+- cat   = display file contents
+- grep  = search in text
 
-Heslo do systému: ********
-(jen si dělám srandu, hesla se takto neukládají!)`
+System password: ********
+(just kidding, passwords aren't stored like this!)`
                                         },
                                         'report.txt': {
                                             type: 'file',
@@ -75,25 +75,25 @@ Heslo do systému: ********
                                             group: 'student',
                                             modified: '2024-01-19 16:45:00',
                                             size: 523,
-                                            content: `TAJNÁ ZPRÁVA
-============
-Kód: ALPHA-7
-Status: AKTIVNÍ
+                                            content: `SECRET MESSAGE
+==============
+Code: ALPHA-7
+Status: ACTIVE
 
-Agent byl úspěšně nasazen.
-Lokace: Praha, sektor 4
-Mise: Získat přístup do systému
+Agent has been successfully deployed.
+Location: London, sector 4
+Mission: Gain access to the system
 
-Kontaktní body:
-- Primární: Karlův most, 14:00
-- Záložní: Staroměstské náměstí, 18:00
+Contact points:
+- Primary: Tower Bridge, 14:00
+- Backup: Trafalgar Square, 18:00
 
-Heslo pro další instrukce: "modrý_slon_42"
+Password for further instructions: "blue_elephant_42"
 
-POZOR: Tuto zprávu po přečtení zničte!
-(Stačí příkaz: rm report.txt)
+WARNING: Destroy this message after reading!
+(Just use: rm report.txt)
 
---- KONEC PŘENOSU ---`
+--- END OF TRANSMISSION ---`
                                         },
                                         'todo.txt': {
                                             type: 'file',
@@ -103,12 +103,12 @@ POZOR: Tuto zprávu po přečtení zničte!
                                             group: 'student',
                                             modified: '2024-01-20 08:00:00',
                                             size: 156,
-                                            content: `Úkoly na dnes:
-[x] Naučit se příkaz ls
-[x] Prozkoumat adresáře
-[ ] Najít skrytý soubor
-[ ] Přečíst tajnou zprávu
-[ ] Rozluštit záhadu v /var/log`
+                                            content: `Today's tasks:
+[x] Learn the ls command
+[x] Explore directories
+[ ] Find the hidden file
+[ ] Read the secret message
+[ ] Solve the mystery in /var/log`
                                         }
                                     }
                                 },
@@ -161,8 +161,8 @@ POZOR: Tuto zprávu po přečtení zničte!
                                             modified: '2024-01-15 11:00:00',
                                             size: 45,
                                             content: `#!/bin/bash
-echo "Ahoj, světe!"
-echo "Dnes je $(date)"`
+echo "Hello, world!"
+echo "Today is $(date)"`
                                         },
                                         'count.sh': {
                                             type: 'file',
@@ -175,9 +175,9 @@ echo "Dnes je $(date)"`
                                             content: `#!/bin/bash
 for i in 1 2 3 4 5
 do
-    echo "Počítám: $i"
+    echo "Counting: $i"
 done
-echo "Hotovo!"`
+echo "Done!"`
                                         }
                                     }
                                 },
@@ -208,12 +208,12 @@ echo "Hotovo!"`
                                                     content: `<!DOCTYPE html>
 <html>
 <head>
-    <title>Můj web</title>
+    <title>My Website</title>
 </head>
 <body>
-    <h1>Vítejte!</h1>
-    <p>Toto je můj první web.</p>
-    <!-- TODO: přidat více obsahu -->
+    <h1>Welcome!</h1>
+    <p>This is my first website.</p>
+    <!-- TODO: add more content -->
     <!-- SECRET: flag_html_explorer -->
 </body>
 </html>`
@@ -250,9 +250,9 @@ h1 {
                                     group: 'student',
                                     modified: '2024-01-15 10:00:00',
                                     size: 234,
-                                    content: `# .bashrc - Konfigurace shellu
+                                    content: `# .bashrc - Shell configuration
 
-# Aliasy
+# Aliases
 alias ll='ls -la'
 alias la='ls -A'
 alias l='ls -CF'
@@ -261,10 +261,10 @@ alias ..='cd ..'
 # Prompt
 PS1='\\u@\\h:\\w\\$ '
 
-# Historie
+# History
 HISTSIZE=1000
 
-# Tajný alias (pssst!)
+# Secret alias (shhh!)
 alias matrix='echo "Wake up, Neo..."'`
                                 },
                                 '.secret': {
@@ -275,18 +275,18 @@ alias matrix='echo "Wake up, Neo..."'`
                                     group: 'student',
                                     modified: '2024-01-10 03:00:00',
                                     size: 178,
-                                    content: `GRATULACE!
+                                    content: `CONGRATULATIONS!
 
-Našel jsi skrytý soubor!
-Skryté soubory začínají tečkou (.)
-a normálně je příkaz 'ls' nezobrazí.
+You found a hidden file!
+Hidden files start with a dot (.)
+and the 'ls' command doesn't show them by default.
 
-Pro zobrazení skrytých souborů použij:
+To see hidden files, use:
 ls -a
 
-Tvůj kód: HIDDEN_MASTER_2024
+Your code: HIDDEN_MASTER_2024
 
-Pokračuj v průzkumu!`
+Keep exploring!`
                                 },
                                 '.config': {
                                     type: 'dir',
@@ -321,26 +321,26 @@ Pokračuj v průzkumu!`
                                     group: 'student',
                                     modified: '2024-01-20 14:00:00',
                                     size: 456,
-                                    content: `Vítej v Linux terminálu!
-========================
+                                    content: `Welcome to the Linux terminal!
+==============================
 
-Toto je tvůj domovský adresář.
-Můžeš zde prozkoumávat soubory a složky.
+This is your home directory.
+You can explore files and folders here.
 
-Základní příkazy:
-- ls        Zobraz obsah složky
-- ls -la    Zobraz VŠE včetně skrytých souborů
-- cd X      Přejdi do složky X
-- cd ..     Vrať se o úroveň výš
-- cat X     Zobraz obsah souboru X
-- pwd       Kde právě jsem?
+Basic commands:
+- ls        List folder contents
+- ls -la    Show EVERYTHING including hidden files
+- cd X      Go to folder X
+- cd ..     Go back one level
+- cat X     Display contents of file X
+- pwd       Where am I?
 
-Pro nápovědu k příkazu napiš:
-man PŘÍKAZ
+For help with a command, type:
+man COMMAND
 
-Hodně štěstí při průzkumu!
+Good luck exploring!
 
-PS: Některé věci jsou skryté... ;-)`
+PS: Some things are hidden... ;-)`
                                 }
                             }
                         }
@@ -367,7 +367,7 @@ PS: Některé věci jsou skryté... ;-)`
 192.168.1.1     router
 192.168.1.100   server
 
-# Tajný server (nikdo neví, že existuje)
+# Secret server (nobody knows it exists)
 10.13.37.1      secret.hq`
                         },
                         'passwd': {
@@ -542,31 +542,31 @@ Jan 20 14:30:00 linux-vm sudo: admin left a backup file somewhere in /tmp... tha
                                     size: 456,
                                     content: `From: admin@linux-vm
 To: student@linux-vm
-Subject: Vítej v systému!
+Subject: Welcome to the system!
 Date: Mon, 20 Jan 2024 08:00:00 +0100
 
-Ahoj studente,
+Hello student,
 
-Vítej v našem Linux systému!
+Welcome to our Linux system!
 
-Tvým úkolem je prozkoumat systém a najít všechny
-ukryté vlajky (FLAG{...}).
+Your task is to explore the system and find all
+hidden flags (FLAG{...}).
 
-Tip: Podívej se do logů v /var/log
+Tip: Check out the logs in /var/log
 
-Hodně štěstí!
+Good luck!
 Admin
 
 ---
 From: system@linux-vm
 To: student@linux-vm
-Subject: Bezpečnostní upozornění
+Subject: Security Alert
 Date: Mon, 20 Jan 2024 11:30:00 +0100
 
-VAROVÁNÍ: Zaznamenali jsme podezřelou aktivitu
-z IP adresy 192.168.1.200
+WARNING: We detected suspicious activity
+from IP address 192.168.1.200
 
-Zkontroluj prosím logy.`
+Please check the logs.`
                                 }
                             }
                         }
@@ -613,20 +613,20 @@ Zkontroluj prosím logy.`
                                             group: 'root',
                                             modified: '2024-01-15 10:00:00',
                                             size: 312,
-                                            content: `Moudrost dne:
-=============
+                                            content: `Wisdom of the day:
+==================
 
-"V Linuxu je vše soubor."
+"In Linux, everything is a file."
 
-"Kdo ovládá terminál, ovládá systém."
+"Who controls the terminal, controls the system."
 
-"Grep je tvůj přítel."
+"Grep is your friend."
 
-"Skryté soubory začínají tečkou."
+"Hidden files start with a dot."
 
-"Když nevíš, použij man."
+"When in doubt, use man."
 
-"Root má vždy pravdu (a plná práva)."`
+"Root is always right (and has full permissions)."`
                                         }
                                     }
                                 }
@@ -650,11 +650,11 @@ Zkontroluj prosím logy.`
                             group: 'nogroup',
                             modified: '2024-01-20 14:00:00',
                             size: 67,
-                            content: `Někdo tu zanechal vzkaz...
+                            content: `Someone left a note here...
 
-Heslo je: tmp_explorer_2024
+The password is: tmp_explorer_2024
 
-Kdo to asi byl?`
+Who could it have been?`
                         },
                         '.admin_backup': {
                             type: 'file',
@@ -664,13 +664,13 @@ Kdo to asi byl?`
                             group: 'root',
                             modified: '2024-01-19 23:45:00',
                             size: 156,
-                            content: `POZNÁMKA PRO ADMINA
-===================
-(tohle jsem sem neměl dávat, ale pořád zapomínám heslo)
+                            content: `NOTE FOR ADMIN
+==============
+(I shouldn't have put this here, but I keep forgetting the password)
 
-sudo heslo: penguin123
+sudo password: penguin123
 
-SMAŽ TOHLE JAKMILE SI TO ZAPAMATUJEŠ!`
+DELETE THIS ONCE YOU MEMORIZE IT!`
                         }
                     }
                 },
@@ -708,18 +708,18 @@ history -c`
                             modified: '2024-01-20 02:00:00',
                             size: 456,
                             content: `╔══════════════════════════════════════════════════════╗
-║          PŘÍSNĚ TAJNÉ - POUZE PRO ROOT               ║
+║          TOP SECRET - ROOT ONLY                      ║
 ╠══════════════════════════════════════════════════════╣
 ║                                                      ║
-║  GRATULACE, AGENTE!                                  ║
+║  CONGRATULATIONS, AGENT!                             ║
 ║                                                      ║
-║  Úspěšně jsi získal root přístup k systému.          ║
-║  Tvoje mise je splněna.                              ║
+║  You have successfully gained root access.           ║
+║  Your mission is complete.                           ║
 ║                                                      ║
 ║  FLAG{sudo_master_2024}                              ║
 ║                                                      ║
-║  "S velkou mocí přichází velká zodpovědnost."        ║
-║                       - Uncle Ben (a každý sysadmin) ║
+║  "With great power comes great responsibility."      ║
+║                      - Uncle Ben (and every sysadmin)║
 ║                                                      ║
 ╚══════════════════════════════════════════════════════╝`
                         },
@@ -731,12 +731,12 @@ history -c`
                             group: 'root',
                             modified: '2024-01-01 00:00:00',
                             size: 89,
-                            content: `JADERNÉ KÓDY
-============
-Jen si dělám srandu :D
+                            content: `NUCLEAR CODES
+=============
+Just kidding :D
 
-Ale vážně, tohle je root-only soubor.
-Dobrá práce, že ses sem dostal!`
+But seriously, this is a root-only file.
+Good job getting here!`
                         }
                     }
                 }
@@ -805,7 +805,7 @@ Dobrá práce, že ses sem dostal!`
         const node = this.getNode(path);
 
         if (!node) {
-            return { error: `ls: nelze přistoupit k '${path}': Adresář nebo soubor neexistuje` };
+            return { error: `ls: cannot access '${path}': No such file or directory` };
         }
 
         if (node.type !== 'dir') {
@@ -824,7 +824,7 @@ Dobrá práce, že ses sem dostal!`
 
         // Check directory access permissions
         if (!this.canAccessDir(node)) {
-            return { error: `ls: nelze otevřít adresář '${path}': Přístup odepřen` };
+            return { error: `ls: cannot open directory '${path}': Permission denied` };
         }
 
         let files = Object.values(node.children);
@@ -866,16 +866,16 @@ Dobrá práce, že ses sem dostal!`
         const node = this.getNode(path);
 
         if (!node) {
-            return { error: `cd: ${path}: Adresář nebo soubor neexistuje` };
+            return { error: `cd: ${path}: No such file or directory` };
         }
 
         if (node.type !== 'dir') {
-            return { error: `cd: ${path}: Není adresář` };
+            return { error: `cd: ${path}: Not a directory` };
         }
 
         // Check directory access permissions
         if (!this.canAccessDir(node)) {
-            return { error: `cd: ${path}: Přístup odepřen` };
+            return { error: `cd: ${path}: Permission denied` };
         }
 
         this.currentPath = resolvedPath;
@@ -910,7 +910,7 @@ Dobrá práce, že ses sem dostal!`
             this.isRoot = true;
             return { success: true };
         }
-        return { error: 'Chybné heslo. Tento incident bude nahlášen.' };
+        return { error: 'Sorry, try again. This incident will be reported.' };
     }
 
     // Exit sudo mode
@@ -923,16 +923,16 @@ Dobrá práce, že ses sem dostal!`
         const node = this.getNode(path);
 
         if (!node) {
-            return { error: `cat: ${path}: Soubor nebo adresář neexistuje` };
+            return { error: `cat: ${path}: No such file or directory` };
         }
 
         if (node.type === 'dir') {
-            return { error: `cat: ${path}: Je adresář` };
+            return { error: `cat: ${path}: Is a directory` };
         }
 
         // Check read permissions
         if (!this.canRead(node)) {
-            return { error: `cat: ${path}: Přístup odepřen` };
+            return { error: `cat: ${path}: Permission denied` };
         }
 
         return { content: node.content, binary: node.binary };
@@ -944,7 +944,7 @@ Dobrá práce, že ses sem dostal!`
         const resolvedPath = this.resolvePath(path);
 
         if (!node) {
-            return { error: `stat: nelze získat informace o '${path}': Soubor nebo adresář neexistuje` };
+            return { error: `stat: cannot stat '${path}': No such file or directory` };
         }
 
         return {
@@ -967,7 +967,7 @@ Dobrá práce, že ses sem dostal!`
         const node = this.getNode(path);
 
         if (!node) {
-            return { error: `file: ${path}: Soubor nebo adresář neexistuje` };
+            return { error: `file: ${path}: No such file or directory` };
         }
 
         if (node.type === 'dir') {
@@ -1016,15 +1016,15 @@ Dobrá práce, že ses sem dostal!`
         const parent = this.getNode(parentPath || '/');
 
         if (!parent) {
-            return { error: `mkdir: nelze vytvořit adresář '${path}': Adresář neexistuje` };
+            return { error: `mkdir: cannot create directory '${path}': No such file or directory` };
         }
 
         if (parent.type !== 'dir') {
-            return { error: `mkdir: nelze vytvořit adresář '${path}': Není adresář` };
+            return { error: `mkdir: cannot create directory '${path}': Not a directory` };
         }
 
         if (parent.children[dirName]) {
-            return { error: `mkdir: nelze vytvořit adresář '${path}': Soubor existuje` };
+            return { error: `mkdir: cannot create directory '${path}': File exists` };
         }
 
         parent.children[dirName] = {
@@ -1050,11 +1050,11 @@ Dobrá práce, že ses sem dostal!`
         const parent = this.getNode(parentPath || '/');
 
         if (!parent) {
-            return { error: `touch: nelze vytvořit '${path}': Adresář neexistuje` };
+            return { error: `touch: cannot touch '${path}': No such file or directory` };
         }
 
         if (parent.type !== 'dir') {
-            return { error: `touch: nelze vytvořit '${path}': Není adresář` };
+            return { error: `touch: cannot touch '${path}': Not a directory` };
         }
 
         const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -1088,15 +1088,15 @@ Dobrá práce, že ses sem dostal!`
         const node = this.getNode(path);
 
         if (!node) {
-            return { error: `rm: nelze odstranit '${path}': Soubor nebo adresář neexistuje` };
+            return { error: `rm: cannot remove '${path}': No such file or directory` };
         }
 
         if (node.type === 'dir' && !options.recursive) {
-            return { error: `rm: nelze odstranit '${path}': Je adresář (použij -r)` };
+            return { error: `rm: cannot remove '${path}': Is a directory (use -r)` };
         }
 
         if (node.type === 'dir' && Object.keys(node.children).length > 0 && !options.recursive) {
-            return { error: `rm: nelze odstranit '${path}': Adresář není prázdný` };
+            return { error: `rm: cannot remove '${path}': Directory not empty` };
         }
 
         delete parent.children[name];
@@ -1108,7 +1108,7 @@ Dobrá práce, že ses sem dostal!`
         const node = this.getNode(path);
 
         if (!node) {
-            return { error: `grep: ${path}: Soubor nebo adresář neexistuje` };
+            return { error: `grep: ${path}: No such file or directory` };
         }
 
         const results = [];
@@ -1149,7 +1149,7 @@ Dobrá práce, že ses sem dostal!`
             if (options.recursive) {
                 searchDir(this.resolvePath(path), node);
             } else {
-                return { error: `grep: ${path}: Je adresář` };
+                return { error: `grep: ${path}: Is a directory` };
             }
         }
 
