@@ -1,4 +1,4 @@
-import { CONFIG, LOCATIONS, DOOR_POSITIONS, getBedPosition, HOUSE_POSITIONS, TERRAIN_TYPES } from './config.js';
+import { CONFIG, LOCATIONS, getBedPosition, HOUSE_POSITIONS } from './config.js';
 import { world, findFieldNeedingAttention, findFieldNeedingWater, findTreeToChop, findSheepToShear, isBlockedByWall, hasFireOutbreak, extinguishFire } from './world.js';
 import {
     NodeStatus,
@@ -166,54 +166,6 @@ function isInsideBuilding(villager, location) {
            villager.y <= location.y + location.h - 2;
 }
 
-// Helper to check if villager is at or near a door/gate
-function isAtDoor(villager, location) {
-    if (location.doorX !== undefined) {
-        const doorCenterX = location.doorX + 0.5;
-        const doorCenterY = location.doorY + 0.5;
-        const distToDoor = Math.sqrt(
-            Math.pow(villager.x - doorCenterX, 2) +
-            Math.pow(villager.y - doorCenterY, 2)
-        );
-        if (distToDoor < 0.6) return true;
-    }
-    if (location.gateX !== undefined) {
-        const gateCenterX = location.gateX + 0.5;
-        const gateCenterY = location.gateY + 0.5;
-        const distToGate = Math.sqrt(
-            Math.pow(villager.x - gateCenterX, 2) +
-            Math.pow(villager.y - gateCenterY, 2)
-        );
-        if (distToGate < 0.6) return true;
-    }
-    return false;
-}
-
-// Check if a target is inside a specific building/fenced area
-function targetIsInBuilding(target, location) {
-    return target.x >= location.x + 1 &&
-           target.x <= location.x + location.w - 2 &&
-           target.y >= location.y + 1 &&
-           target.y <= location.y + location.h - 2;
-}
-
-// Find which building/fenced area (if any) contains the target
-function findBuildingForTarget(target) {
-    const buildings = [
-        { loc: LOCATIONS.house, door: DOOR_POSITIONS.house },
-        { loc: LOCATIONS.storage, door: DOOR_POSITIONS.storage },
-        { loc: LOCATIONS.mill, door: DOOR_POSITIONS.mill },
-        { loc: LOCATIONS.pasture, door: DOOR_POSITIONS.pasture }
-    ];
-
-    for (const b of buildings) {
-        if (targetIsInBuilding(target, b.loc)) {
-            return b;
-        }
-    }
-    return null;
-}
-
 // Helper to check if villager is near a location
 function isNearLocation(villager, location, range = 1.5) {
     const centerX = location.x + location.w / 2;
@@ -303,15 +255,6 @@ export const CONDITIONS = {
     storageHasCookedFish: (v) => gameStateRef.storedCookedFish > 0
 };
 
-// Helper to check if a tile is a door or gate (walkable entry points)
-function isDoorOrGate(tileX, tileY) {
-    if (tileY < 0 || tileY >= world.height || tileX < 0 || tileX >= world.width) {
-        return false;
-    }
-    const terrain = world.terrain[tileY][tileX];
-    return terrain === TERRAIN_TYPES.DOOR || terrain === TERRAIN_TYPES.GATE;
-}
-
 // Helper to check if a move is valid (doesn't cut corners through walls)
 function canMoveTo(fromX, fromY, toX, toY) {
     // Check destination is not a wall
@@ -346,99 +289,16 @@ function canMoveTo(fromX, fromY, toX, toY) {
     return true;
 }
 
-// Get the CENTER of the tile just OUTSIDE a door (for approaching straight-on)
-// Uses integer tile coords from loc, returns tile center (adds +0.5)
-function getOutsideDoorPosition(building) {
-    const loc = building.loc;
-    const doorX = loc.doorX !== undefined ? loc.doorX : loc.gateX;
-    const doorY = loc.doorY !== undefined ? loc.doorY : loc.gateY;
-
-    // Determine which edge the door is on and return CENTER of tile just outside
-    if (doorY === loc.y) {
-        // Door on top edge - outside tile is (doorX, doorY-1)
-        return { x: doorX + 0.5, y: (doorY - 1) + 0.5 };
-    } else if (doorY === loc.y + loc.h - 1) {
-        // Door on bottom edge - outside tile is (doorX, doorY+1)
-        return { x: doorX + 0.5, y: (doorY + 1) + 0.5 };
-    } else if (doorX === loc.x) {
-        // Door on left edge - outside tile is (doorX-1, doorY)
-        return { x: (doorX - 1) + 0.5, y: doorY + 0.5 };
-    } else if (doorX === loc.x + loc.w - 1) {
-        // Door on right edge - outside tile is (doorX+1, doorY)
-        return { x: (doorX + 1) + 0.5, y: doorY + 0.5 };
-    }
-    // Default: assume bottom door - outside tile is (doorX, doorY+1)
-    return { x: doorX + 0.5, y: (doorY + 1) + 0.5 };
-}
-
-// Get the "just inside" position from a door (one step into the building)
-// ALL POSITIONS USE TILE CENTERS: tileX + 0.5, tileY + 0.5
-function getInsideDoorPosition(building) {
-    const loc = building.loc;
-    const doorX = loc.doorX !== undefined ? loc.doorX : loc.gateX;
-    const doorY = loc.doorY !== undefined ? loc.doorY : loc.gateY;
-
-    // Determine which edge the door is on and return CENTER of tile just inside
-    if (doorY === loc.y) {
-        // Door on top edge - inside tile is (doorX, doorY+1)
-        return { x: doorX + 0.5, y: (doorY + 1) + 0.5 };
-    } else if (doorY === loc.y + loc.h - 1) {
-        // Door on bottom edge - inside tile is (doorX, doorY-1)
-        return { x: doorX + 0.5, y: (doorY - 1) + 0.5 };
-    } else if (doorX === loc.x) {
-        // Door on left edge - inside tile is (doorX+1, doorY)
-        return { x: (doorX + 1) + 0.5, y: doorY + 0.5 };
-    } else if (doorX === loc.x + loc.w - 1) {
-        // Door on right edge - inside tile is (doorX-1, doorY)
-        return { x: (doorX - 1) + 0.5, y: doorY + 0.5 };
-    }
-    // Default: assume bottom door - inside tile is (doorX, doorY-1)
-    return { x: doorX + 0.5, y: (doorY - 1) + 0.5 };
-}
-
 // Create a movement action to a target location with simple tile-based pathfinding
+// Doors are walkable tiles, so pathfinding naturally finds the path through them
 function createGoToAction(targetGetter) {
     return (villager) => {
-        const finalTarget = targetGetter(villager);
-        if (!finalTarget) {
+        const target = targetGetter(villager);
+        if (!target) {
             villager.targetField = null;
             villager.targetTree = null;
             villager.targetSheep = null;
             return NodeStatus.FAILURE;
-        }
-
-        // Determine actual target - if target is in a building and we're outside, go through door
-        let target = finalTarget;
-        const building = findBuildingForTarget(finalTarget);
-        if (building && !isInsideBuilding(villager, building.loc)) {
-            // Get all waypoint positions - add +0.5 to convert tile coords to tile centers
-            const outsidePos = getOutsideDoorPosition(building);
-            const doorPos = { x: building.door.x + 0.5, y: building.door.y + 0.5 }; // Convert to tile center
-            const insidePos = getInsideDoorPosition(building);
-
-            const distToOutside = Math.sqrt(
-                Math.pow(outsidePos.x - villager.x, 2) + Math.pow(outsidePos.y - villager.y, 2)
-            );
-            const distToDoor = Math.sqrt(
-                Math.pow(doorPos.x - villager.x, 2) + Math.pow(doorPos.y - villager.y, 2)
-            );
-            const distToInside = Math.sqrt(
-                Math.pow(insidePos.x - villager.x, 2) + Math.pow(insidePos.y - villager.y, 2)
-            );
-
-            // 4-step waypoint: approach → outside door → door center → inside position → final target
-            // Use tight thresholds to ensure villagers reach exact tile centers
-            if (distToOutside >= 0.15 && distToDoor > 0.5) {
-                // Far from door - first go to outside position (straight approach)
-                target = outsidePos;
-            } else if (distToDoor >= 0.15) {
-                // Near outside or at outside - go to exact door center
-                target = doorPos;
-            } else if (distToInside >= 0.15) {
-                // At door center - now go to exact inside position
-                target = insidePos;
-            }
-            // else: we're inside enough, proceed to final target
         }
 
         const dx = target.x - villager.x;
@@ -446,10 +306,6 @@ function createGoToAction(targetGetter) {
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist < 0.3) {
-            // If we reached intermediate target (door), continue to final target
-            if (target !== finalTarget) {
-                return NodeStatus.RUNNING;
-            }
             villager.state = 'idle';
             return NodeStatus.SUCCESS;
         }

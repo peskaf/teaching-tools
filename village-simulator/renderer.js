@@ -326,14 +326,15 @@ function drawHouseInterior(px, py, w, h, tileSize, scale, building) {
     }
 
     // Draw beds using getBedPosition() for accurate placement
+    // getBedPosition returns INTEGER tile coords, so add +0.5 to get tile center
     const numBeds = Math.min(villagers.length, 5);
     const bedWidth = tileSize * 0.8;
     const bedHeight = tileSize * 0.7;
 
     for (let i = 0; i < numBeds; i++) {
         const bedPos = getBedPosition(i);
-        const bedCenterX = offset.x + bedPos.x * tileSize;
-        const bedCenterY = offset.y + bedPos.y * tileSize;
+        const bedCenterX = offset.x + (bedPos.x + 0.5) * tileSize;
+        const bedCenterY = offset.y + (bedPos.y + 0.5) * tileSize;
         const bedX = bedCenterX - bedWidth / 2;
         const bedY = bedCenterY - bedHeight / 2;
 
@@ -352,10 +353,11 @@ function drawHouseInterior(px, py, w, h, tileSize, scale, building) {
         ctx.fillRect(bedX + 3 * scale, bedY + 3 * scale, bedWidth - 6 * scale, bedHeight * 0.2);
     }
 
-    // Draw fireplace on right side, middle row
+    // Draw fireplace on right side, top row
+    // HOUSE_POSITIONS returns INTEGER tile coords, so add +0.5 to get tile center
     const fireplacePos = HOUSE_POSITIONS.fireplace;
-    const fireplaceX = offset.x + fireplacePos.x * tileSize - tileSize * 0.4;
-    const fireplaceY = offset.y + fireplacePos.y * tileSize - tileSize * 0.4;
+    const fireplaceX = offset.x + (fireplacePos.x + 0.5) * tileSize - tileSize * 0.4;
+    const fireplaceY = offset.y + (fireplacePos.y + 0.5) * tileSize - tileSize * 0.4;
     const fireplaceW = tileSize * 0.8;
     const fireplaceH = tileSize * 0.8;
 
@@ -396,10 +398,11 @@ function drawHouseInterior(px, py, w, h, tileSize, scale, building) {
         }
     }
 
-    // Draw stove - bottom row, right side
+    // Draw stove - top row, center-right
+    // HOUSE_POSITIONS returns INTEGER tile coords, so add +0.5 to get tile center
     const stovePos = HOUSE_POSITIONS.stove;
-    const stoveX = offset.x + stovePos.x * tileSize - tileSize * 0.35;
-    const stoveY = offset.y + stovePos.y * tileSize - tileSize * 0.35;
+    const stoveX = offset.x + (stovePos.x + 0.5) * tileSize - tileSize * 0.35;
+    const stoveY = offset.y + (stovePos.y + 0.5) * tileSize - tileSize * 0.35;
     const stoveW = tileSize * 0.7;
     const stoveH = tileSize * 0.7;
 
@@ -423,10 +426,11 @@ function drawHouseInterior(px, py, w, h, tileSize, scale, building) {
     ctx.fillStyle = '#6a6a6a';
     ctx.fillRect(stoveX + stoveW * 0.3, stoveY + stoveH * 0.55, stoveW * 0.4, 2 * scale);
 
-    // Draw knitting station - bottom row, left side
+    // Draw knitting station - top row, left side
+    // HOUSE_POSITIONS returns INTEGER tile coords, so add +0.5 to get tile center
     const knittingPos = HOUSE_POSITIONS.knittingStation;
-    const knittingX = offset.x + knittingPos.x * tileSize - tileSize * 0.3;
-    const knittingY = offset.y + knittingPos.y * tileSize - tileSize * 0.35;
+    const knittingX = offset.x + (knittingPos.x + 0.5) * tileSize - tileSize * 0.3;
+    const knittingY = offset.y + (knittingPos.y + 0.5) * tileSize - tileSize * 0.35;
     const knittingW = tileSize * 0.6;
     const knittingH = tileSize * 0.7;
 
