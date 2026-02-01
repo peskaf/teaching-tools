@@ -346,28 +346,29 @@ function canMoveTo(fromX, fromY, toX, toY) {
     return true;
 }
 
-// Get the position just OUTSIDE a door (for approaching straight-on)
+// Get the CENTER of the tile just OUTSIDE a door (for approaching straight-on)
+// Uses integer tile coords from loc, returns tile center (adds +0.5)
 function getOutsideDoorPosition(building) {
     const loc = building.loc;
     const doorX = loc.doorX !== undefined ? loc.doorX : loc.gateX;
     const doorY = loc.doorY !== undefined ? loc.doorY : loc.gateY;
 
-    // Determine which edge the door is on and return position just outside
+    // Determine which edge the door is on and return CENTER of tile just outside
     if (doorY === loc.y) {
-        // Door on top edge - outside is above
-        return { x: doorX + 0.5, y: doorY - 0.5 };
+        // Door on top edge - outside tile is (doorX, doorY-1)
+        return { x: doorX + 0.5, y: (doorY - 1) + 0.5 };
     } else if (doorY === loc.y + loc.h - 1) {
-        // Door on bottom edge - outside is below
-        return { x: doorX + 0.5, y: doorY + 1.5 };
+        // Door on bottom edge - outside tile is (doorX, doorY+1)
+        return { x: doorX + 0.5, y: (doorY + 1) + 0.5 };
     } else if (doorX === loc.x) {
-        // Door on left edge - outside is to the left
-        return { x: doorX - 0.5, y: doorY + 0.5 };
+        // Door on left edge - outside tile is (doorX-1, doorY)
+        return { x: (doorX - 1) + 0.5, y: doorY + 0.5 };
     } else if (doorX === loc.x + loc.w - 1) {
-        // Door on right edge - outside is to the right
-        return { x: doorX + 1.5, y: doorY + 0.5 };
+        // Door on right edge - outside tile is (doorX+1, doorY)
+        return { x: (doorX + 1) + 0.5, y: doorY + 0.5 };
     }
-    // Default: assume bottom door - outside is below
-    return { x: doorX + 0.5, y: doorY + 1.5 };
+    // Default: assume bottom door - outside tile is (doorX, doorY+1)
+    return { x: doorX + 0.5, y: (doorY + 1) + 0.5 };
 }
 
 // Get the "just inside" position from a door (one step into the building)
@@ -410,10 +411,14 @@ function createGoToAction(targetGetter) {
         let target = finalTarget;
         const building = findBuildingForTarget(finalTarget);
         if (building && !isInsideBuilding(villager, building.loc)) {
-            // Door center position (center of the door tile)
-            const doorPos = building.door; // Already has +0.5 offset for tile center
+            // Get all waypoint positions - add +0.5 to convert tile coords to tile centers
+            const outsidePos = getOutsideDoorPosition(building);
+            const doorPos = { x: building.door.x + 0.5, y: building.door.y + 0.5 }; // Convert to tile center
             const insidePos = getInsideDoorPosition(building);
 
+            const distToOutside = Math.sqrt(
+                Math.pow(outsidePos.x - villager.x, 2) + Math.pow(outsidePos.y - villager.y, 2)
+            );
             const distToDoor = Math.sqrt(
                 Math.pow(doorPos.x - villager.x, 2) + Math.pow(doorPos.y - villager.y, 2)
             );
@@ -421,13 +426,16 @@ function createGoToAction(targetGetter) {
                 Math.pow(insidePos.x - villager.x, 2) + Math.pow(insidePos.y - villager.y, 2)
             );
 
-            // 3-step waypoint: outside → door center → inside position → final target
-            // This ensures villagers go THROUGH the door, not diagonally around it
-            if (distToDoor >= 0.4) {
-                // Not at door yet - go to door center first
+            // 4-step waypoint: approach → outside door → door center → inside position → final target
+            // Use tight thresholds to ensure villagers reach exact tile centers
+            if (distToOutside >= 0.15 && distToDoor > 0.5) {
+                // Far from door - first go to outside position (straight approach)
+                target = outsidePos;
+            } else if (distToDoor >= 0.15) {
+                // Near outside or at outside - go to exact door center
                 target = doorPos;
-            } else if (distToInside >= 0.3) {
-                // At door - now go to inside position
+            } else if (distToInside >= 0.15) {
+                // At door center - now go to exact inside position
                 target = insidePos;
             }
             // else: we're inside enough, proceed to final target
@@ -452,9 +460,12 @@ function createGoToAction(targetGetter) {
             speed = 0.04;
         }
 
+        // Limit speed to not overshoot target
+        const moveSpeed = Math.min(speed, dist);
+
         // Calculate desired next position (direct line to target)
-        const desiredX = villager.x + (dx / dist) * speed;
-        const desiredY = villager.y + (dy / dist) * speed;
+        const desiredX = villager.x + (dx / dist) * moveSpeed;
+        const desiredY = villager.y + (dy / dist) * moveSpeed;
 
         let nextX = villager.x;
         let nextY = villager.y;
@@ -466,29 +477,30 @@ function createGoToAction(targetGetter) {
             nextY = desiredY;
             moved = true;
         } else {
-            // Try axis-aligned movements (prioritize the axis with larger delta)
-            const moveX = dx > 0 ? speed : (dx < 0 ? -speed : 0);
-            const moveY = dy > 0 ? speed : (dy < 0 ? -speed : 0);
+            // Blocked - try moving along each axis separately toward the target
+            // Calculate how much to move on each axis (limited by speed and distance)
+            const moveAmountX = Math.min(Math.abs(dx), speed) * Math.sign(dx);
+            const moveAmountY = Math.min(Math.abs(dy), speed) * Math.sign(dy);
 
             // Determine which axis to try first based on distance to target
             const tryXFirst = Math.abs(dx) > Math.abs(dy);
 
             if (tryXFirst) {
                 // Try X first, then Y
-                if (moveX !== 0 && canMoveTo(villager.x, villager.y, villager.x + moveX, villager.y)) {
-                    nextX = villager.x + moveX;
+                if (moveAmountX !== 0 && canMoveTo(villager.x, villager.y, villager.x + moveAmountX, villager.y)) {
+                    nextX = villager.x + moveAmountX;
                     moved = true;
-                } else if (moveY !== 0 && canMoveTo(villager.x, villager.y, villager.x, villager.y + moveY)) {
-                    nextY = villager.y + moveY;
+                } else if (moveAmountY !== 0 && canMoveTo(villager.x, villager.y, villager.x, villager.y + moveAmountY)) {
+                    nextY = villager.y + moveAmountY;
                     moved = true;
                 }
             } else {
                 // Try Y first, then X
-                if (moveY !== 0 && canMoveTo(villager.x, villager.y, villager.x, villager.y + moveY)) {
-                    nextY = villager.y + moveY;
+                if (moveAmountY !== 0 && canMoveTo(villager.x, villager.y, villager.x, villager.y + moveAmountY)) {
+                    nextY = villager.y + moveAmountY;
                     moved = true;
-                } else if (moveX !== 0 && canMoveTo(villager.x, villager.y, villager.x + moveX, villager.y)) {
-                    nextX = villager.x + moveX;
+                } else if (moveAmountX !== 0 && canMoveTo(villager.x, villager.y, villager.x + moveAmountX, villager.y)) {
+                    nextX = villager.x + moveAmountX;
                     moved = true;
                 }
             }
@@ -565,14 +577,25 @@ export const ACTIONS = {
 
     goToHouse: createGoToAction((villager) => {
         // Go to bed position (door is on the path, villager will walk through it)
-        return getBedPosition(villager.id);
+        // Add +0.5 to convert tile coords to tile center
+        const bed = getBedPosition(villager.id);
+        return { x: bed.x + 0.5, y: bed.y + 0.5 };
     }),
 
-    goToFireplace: createGoToAction(() => HOUSE_POSITIONS.fireplace),
+    goToFireplace: createGoToAction(() => ({
+        x: HOUSE_POSITIONS.fireplace.x + 0.5,
+        y: HOUSE_POSITIONS.fireplace.y + 0.5
+    })),
 
-    goToStove: createGoToAction(() => HOUSE_POSITIONS.stove),
+    goToStove: createGoToAction(() => ({
+        x: HOUSE_POSITIONS.stove.x + 0.5,
+        y: HOUSE_POSITIONS.stove.y + 0.5
+    })),
 
-    goToKnittingStation: createGoToAction(() => HOUSE_POSITIONS.knittingStation),
+    goToKnittingStation: createGoToAction(() => ({
+        x: HOUSE_POSITIONS.knittingStation.x + 0.5,
+        y: HOUSE_POSITIONS.knittingStation.y + 0.5
+    })),
 
     goToStorage: createGoToAction(() => {
         // Target center interior tile - use tile center (tileX + 0.5, tileY + 0.5)
