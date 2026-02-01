@@ -410,14 +410,24 @@ function createGoToAction(targetGetter) {
         let target = finalTarget;
         const building = findBuildingForTarget(finalTarget);
         if (building && !isInsideBuilding(villager, building.loc)) {
+            // Door center position (center of the door tile)
+            const doorPos = building.door; // Already has +0.5 offset for tile center
             const insidePos = getInsideDoorPosition(building);
+
+            const distToDoor = Math.sqrt(
+                Math.pow(doorPos.x - villager.x, 2) + Math.pow(doorPos.y - villager.y, 2)
+            );
             const distToInside = Math.sqrt(
                 Math.pow(insidePos.x - villager.x, 2) + Math.pow(insidePos.y - villager.y, 2)
             );
 
-            // Simple 2-step: go to "just inside door" position, then to final target
-            // The "inside door" position is directly through the door, one tile inside
-            if (distToInside >= 0.3) {
+            // 3-step waypoint: outside → door center → inside position → final target
+            // This ensures villagers go THROUGH the door, not diagonally around it
+            if (distToDoor >= 0.4) {
+                // Not at door yet - go to door center first
+                target = doorPos;
+            } else if (distToInside >= 0.3) {
+                // At door - now go to inside position
                 target = insidePos;
             }
             // else: we're inside enough, proceed to final target
