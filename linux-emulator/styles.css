@@ -89,13 +89,37 @@ body {
     display: flex;
     flex-direction: column;
     line-height: 1.4;
+    color: var(--text-primary);
 }
 
 #output {
     flex: 1;
     white-space: pre-wrap;
     word-break: break-word;
+    color: var(--text-primary);
 }
+
+#output * {
+    color: inherit;
+}
+
+#output .output-error { color: var(--terminal-red); }
+#output .output-success { color: var(--terminal-green); }
+#output .output-warning { color: var(--terminal-yellow); }
+#output .output-info { color: var(--terminal-blue); }
+#output .output-muted { color: var(--text-muted); }
+#output .output-highlight { color: var(--terminal-magenta); }
+#output .output-cyan { color: var(--terminal-cyan); }
+#output .man-header { color: var(--terminal-yellow); }
+#output .man-section { color: var(--terminal-cyan); }
+#output .man-option { color: var(--terminal-green); }
+#output .file-dir { color: var(--terminal-blue); }
+#output .file-exec { color: var(--terminal-green); }
+#output .file-link { color: var(--terminal-cyan); }
+#output .hex-offset { color: var(--terminal-yellow); }
+#output .hex-bytes { color: var(--terminal-cyan); }
+#output .hex-ascii { color: var(--terminal-green); }
+#output .prompt { color: var(--terminal-green); }
 
 .input-line {
     display: flex;
