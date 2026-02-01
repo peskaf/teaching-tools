@@ -1,5 +1,5 @@
 // Version for cache-busting verification
-export const VERSION = "1.0.6";
+export const VERSION = "1.0.7";
 
 // Game Configuration
 export const CONFIG = {

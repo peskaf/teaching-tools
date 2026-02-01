@@ -257,17 +257,22 @@ export const CONDITIONS = {
 
 // Helper to check if a move is valid (doesn't cut corners through walls)
 function canMoveTo(fromX, fromY, toX, toY) {
-    // Check destination is not a wall
-    if (isBlockedByWall(toX, toY)) return false;
-
     const fromTileX = Math.floor(fromX);
     const fromTileY = Math.floor(fromY);
     const toTileX = Math.floor(toX);
     const toTileY = Math.floor(toY);
 
+    // Check if destination tile is blocked
+    if (isBlockedByWall(toTileX + 0.5, toTileY + 0.5)) return false;
+
     // If staying on same tile, always allow
     if (fromTileX === toTileX && fromTileY === toTileY) {
         return true;
+    }
+
+    // If starting position is somehow in a wall, allow any move that gets us out
+    if (isBlockedByWall(fromTileX + 0.5, fromTileY + 0.5)) {
+        return true; // Let them escape
     }
 
     // If moving to adjacent tile (not diagonal), always allow
@@ -392,8 +397,28 @@ function createGoToAction(targetGetter) {
         }
 
         if (!moved) {
-            // Completely stuck - return RUNNING to try again next tick
-            // (world state might change, or another villager might move)
+            // Completely stuck - check if we're inside a wall and need to escape
+            const currentTileX = Math.floor(villager.x);
+            const currentTileY = Math.floor(villager.y);
+            if (isBlockedByWall(currentTileX + 0.5, currentTileY + 0.5)) {
+                // We're inside a wall! Push toward tile center of nearest walkable tile
+                const escapeDirections = [
+                    { dx: 1, dy: 0 }, { dx: -1, dy: 0 },
+                    { dx: 0, dy: 1 }, { dx: 0, dy: -1 }
+                ];
+                for (const dir of escapeDirections) {
+                    const escapeTileX = currentTileX + dir.dx;
+                    const escapeTileY = currentTileY + dir.dy;
+                    if (!isBlockedByWall(escapeTileX + 0.5, escapeTileY + 0.5)) {
+                        // Teleport to center of this walkable tile
+                        villager.x = escapeTileX + 0.5;
+                        villager.y = escapeTileY + 0.5;
+                        villager.state = 'walking';
+                        return NodeStatus.RUNNING;
+                    }
+                }
+            }
+            // Still stuck - return RUNNING to try again next tick
             return NodeStatus.RUNNING;
         }
 
