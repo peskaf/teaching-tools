@@ -6,9 +6,12 @@ class Terminal {
         this.inputEl = document.getElementById('commandInput');
         this.promptEl = document.getElementById('prompt');
         this.terminalEl = document.getElementById('terminal');
+        this.titleEl = document.getElementById('terminalTitle');
 
         this.commandHistory = [];
         this.historyIndex = -1;
+        this.awaitingSudoPassword = false;
+        this.sudoCommand = null;
 
         this.setupEventListeners();
         this.printWelcome();
@@ -18,7 +21,11 @@ class Terminal {
     setupEventListeners() {
         this.inputEl.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                this.executeCommand(this.inputEl.value);
+                if (this.awaitingSudoPassword) {
+                    this.handleSudoPassword(this.inputEl.value);
+                } else {
+                    this.executeCommand(this.inputEl.value);
+                }
                 this.inputEl.value = '';
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
@@ -32,9 +39,6 @@ class Terminal {
             } else if (e.key === 'c' && e.ctrlKey) {
                 this.printLine('^C');
                 this.inputEl.value = '';
-                if (network.isCapturing) {
-                    this.stopCapture();
-                }
             } else if (e.key === 'l' && e.ctrlKey) {
                 e.preventDefault();
                 this.clear();
@@ -48,34 +52,17 @@ class Terminal {
     }
 
     printWelcome() {
-        const welcome = `
-<span class="ascii-art">
-  _     _                    _____                 _       _
- | |   (_)                  | ____|               | |     | |
- | |    _ _ __  _   ___  __ |  _| _ __ ___  _   _ | | __ _| |_ ___  _ __
- | |   | | '_ \\| | | \\ \\/ / | |_ | '_ \` _ \\| | | || |/ _\` | __/ _ \\| '__|
- | |___| | | | | |_| |>  <  |  __|| | | | | | |_| || | (_| | || (_) | |
- |_____|_|_| |_|\\__,_/_/\\_\\ |____||_| |_| |_|\\__,_||_|\\__,_|\\__\\___/|_|
-</span>
-<span class="output-success">Vítejte v Linux Emulátoru pro výuku!</span>
-<span class="output-muted">───────────────────────────────────────────────────────────────</span>
-
-Tento interaktivní terminál vám pomůže pochopit:
-• Základy příkazové řádky Linuxu
-• Síťové příkazy a diagnostiku
-• Bezpečnost HTTP vs HTTPS
-
-Napište <span class="output-command">help</span> pro seznam dostupných příkazů.
-Vyzkoušejte scénáře v pravém panelu pro interaktivní demonstrace.
-
-<span class="output-muted">───────────────────────────────────────────────────────────────</span>
+        const welcome = `<span class="output-success">Linux Emulator v1.0</span>
+<span class="output-muted">Napiš</span> <span class="output-cyan">help</span> <span class="output-muted">pro seznam příkazů nebo</span> <span class="output-cyan">cat readme.txt</span> <span class="output-muted">pro začátek.</span>
 `;
         this.printHtml(welcome);
     }
 
     updatePrompt() {
         this.promptEl.textContent = fs.getPrompt();
-        document.querySelector('.terminal-title').textContent = `${fs.user}@${fs.hostname}: ${fs.pwd()}`;
+        this.promptEl.classList.toggle('root', fs.isRoot);
+        const displayUser = fs.isRoot ? 'root' : fs.user;
+        this.titleEl.textContent = `${displayUser}@${fs.hostname}: ${fs.pwd()}`;
     }
 
     printLine(text, className = '') {
@@ -107,6 +94,42 @@ Vyzkoušejte scénáře v pravém panelu pro interaktivní demonstrace.
 
     clear() {
         this.outputEl.innerHTML = '';
+    }
+
+    handleSudoPassword(password) {
+        this.inputEl.type = 'text';
+        this.awaitingSudoPassword = false;
+
+        const result = fs.trySudo(password);
+
+        if (result.error) {
+            this.printError(result.error);
+            this.sudoCommand = null;
+            return;
+        }
+
+        // Password correct!
+        const args = this.sudoCommand;
+        this.sudoCommand = null;
+
+        if (args[0].toLowerCase() === 'su') {
+            // Stay as root
+            this.printSuccess('Přepnuto do režimu superuživatele. Pro návrat napiš "exit".');
+            this.updatePrompt();
+        } else {
+            // Run single command as root
+            const command = args[0].toLowerCase();
+            const cmdArgs = args.slice(1);
+
+            if (this.commands[command]) {
+                this.commands[command].call(this, cmdArgs);
+            } else {
+                this.printError(`${command}: příkaz nenalezen`);
+            }
+
+            // Return to normal user after single command
+            fs.exitSudo();
+        }
     }
 
     navigateHistory(direction) {
@@ -167,7 +190,7 @@ Vyzkoušejte scénáře v pravém panelu pro interaktivní demonstrace.
         const trimmedInput = input.trim();
 
         // Print command
-        this.printHtml(`<span class="prompt">${fs.getPrompt()}</span> <span class="output-command">${this.escapeHtml(trimmedInput)}</span>`);
+        this.printHtml(`<span class="prompt">${fs.getPrompt()}</span> ${this.escapeHtml(trimmedInput)}`);
 
         if (!trimmedInput) return;
 
@@ -185,11 +208,10 @@ Vyzkoušejte scénáře v pravém panelu pro interaktivní demonstrace.
             try {
                 this.commands[command].call(this, args);
             } catch (e) {
-                this.printError(`Chyba při provádění příkazu: ${e.message}`);
+                this.printError(`Chyba: ${e.message}`);
             }
         } else {
             this.printError(`${command}: příkaz nenalezen`);
-            this.printLine(`Napište 'help' pro seznam dostupných příkazů.`, 'output-muted');
         }
 
         this.updatePrompt();
@@ -231,49 +253,281 @@ Vyzkoušejte scénáře v pravém panelu pro interaktivní demonstrace.
         return div.innerHTML;
     }
 
+    // Manual pages
+    manPages = {
+        ls: {
+            name: 'ls',
+            synopsis: 'ls [VOLBY]... [SOUBOR]...',
+            description: 'Vypíše informace o souborech (standardně v aktuálním adresáři).',
+            options: [
+                ['-a, --all', 'nezakrývat položky začínající na .'],
+                ['-l', 'použít dlouhý formát výpisu'],
+                ['-la', 'kombinace -l a -a']
+            ]
+        },
+        cd: {
+            name: 'cd',
+            synopsis: 'cd [adresář]',
+            description: 'Změní aktuální pracovní adresář na zadaný adresář. Bez argumentu přejde do domovského adresáře.',
+            options: [
+                ['..', 'přejít do nadřazeného adresáře'],
+                ['~', 'přejít do domovského adresáře'],
+                ['-', 'přejít do předchozího adresáře']
+            ]
+        },
+        pwd: {
+            name: 'pwd',
+            synopsis: 'pwd',
+            description: 'Vypíše úplnou cestu k aktuálnímu pracovnímu adresáři.',
+            options: []
+        },
+        cat: {
+            name: 'cat',
+            synopsis: 'cat [SOUBOR]...',
+            description: 'Spojí soubory a vypíše je na standardní výstup.',
+            options: []
+        },
+        grep: {
+            name: 'grep',
+            synopsis: 'grep [VOLBY] VZOR [SOUBOR]...',
+            description: 'Hledá ve vstupních souborech řádky odpovídající zadanému vzoru.',
+            options: [
+                ['-i', 'ignorovat rozdíl mezi velkými a malými písmeny'],
+                ['-r', 'rekurzivně prohledat adresáře'],
+                ['-n', 'zobrazit čísla řádků']
+            ]
+        },
+        mkdir: {
+            name: 'mkdir',
+            synopsis: 'mkdir ADRESÁŘ...',
+            description: 'Vytvoří adresáře, pokud ještě neexistují.',
+            options: []
+        },
+        rm: {
+            name: 'rm',
+            synopsis: 'rm [VOLBY]... SOUBOR...',
+            description: 'Odstraní soubory nebo adresáře.',
+            options: [
+                ['-r, -R', 'rekurzivně odstranit adresáře a jejich obsah'],
+                ['-f', 'ignorovat neexistující soubory']
+            ]
+        },
+        touch: {
+            name: 'touch',
+            synopsis: 'touch SOUBOR...',
+            description: 'Aktualizuje čas přístupu a modifikace souboru. Pokud soubor neexistuje, vytvoří prázdný soubor.',
+            options: []
+        },
+        stat: {
+            name: 'stat',
+            synopsis: 'stat SOUBOR...',
+            description: 'Zobrazí podrobné informace o souboru nebo adresáři.',
+            options: []
+        },
+        file: {
+            name: 'file',
+            synopsis: 'file SOUBOR...',
+            description: 'Určí typ souboru.',
+            options: []
+        },
+        hexdump: {
+            name: 'hexdump',
+            synopsis: 'hexdump [VOLBY] SOUBOR',
+            description: 'Zobrazí obsah souboru v hexadecimálním formátu.',
+            options: [
+                ['-C', 'kanonický výstup s ASCII reprezentací']
+            ]
+        },
+        head: {
+            name: 'head',
+            synopsis: 'head [VOLBY] [SOUBOR]...',
+            description: 'Vypíše prvních 10 řádků souboru.',
+            options: [
+                ['-n NUM', 'vypsat prvních NUM řádků']
+            ]
+        },
+        tail: {
+            name: 'tail',
+            synopsis: 'tail [VOLBY] [SOUBOR]...',
+            description: 'Vypíše posledních 10 řádků souboru.',
+            options: [
+                ['-n NUM', 'vypsat posledních NUM řádků']
+            ]
+        },
+        wc: {
+            name: 'wc',
+            synopsis: 'wc [VOLBY] [SOUBOR]...',
+            description: 'Vypíše počet řádků, slov a bajtů.',
+            options: [
+                ['-l', 'vypsat pouze počet řádků'],
+                ['-w', 'vypsat pouze počet slov'],
+                ['-c', 'vypsat pouze počet bajtů']
+            ]
+        },
+        echo: {
+            name: 'echo',
+            synopsis: 'echo [TEXT]...',
+            description: 'Vypíše text na standardní výstup.',
+            options: []
+        },
+        whoami: {
+            name: 'whoami',
+            synopsis: 'whoami',
+            description: 'Vypíše uživatelské jméno aktuálního uživatele.',
+            options: []
+        },
+        uname: {
+            name: 'uname',
+            synopsis: 'uname [VOLBY]',
+            description: 'Vypíše informace o systému.',
+            options: [
+                ['-a', 'vypsat všechny informace'],
+                ['-s', 'název jádra'],
+                ['-r', 'verze jádra'],
+                ['-m', 'architektura procesoru']
+            ]
+        },
+        uptime: {
+            name: 'uptime',
+            synopsis: 'uptime',
+            description: 'Zobrazí jak dlouho systém běží.',
+            options: []
+        },
+        clear: {
+            name: 'clear',
+            synopsis: 'clear',
+            description: 'Vymaže obrazovku terminálu.',
+            options: []
+        },
+        history: {
+            name: 'history',
+            synopsis: 'history',
+            description: 'Zobrazí historii zadaných příkazů.',
+            options: []
+        },
+        help: {
+            name: 'help',
+            synopsis: 'help',
+            description: 'Zobrazí seznam dostupných příkazů.',
+            options: []
+        },
+        find: {
+            name: 'find',
+            synopsis: 'find [cesta] [výraz]',
+            description: 'Hledá soubory v adresářové struktuře.',
+            options: [
+                ['-name VZOR', 'hledá soubory podle jména']
+            ]
+        },
+        sudo: {
+            name: 'sudo',
+            synopsis: 'sudo [příkaz]',
+            description: 'Spustí příkaz s právy superuživatele (root). Vyžaduje heslo.',
+            options: [
+                ['su', 'přepne do režimu root (zůstane jako root)'],
+                ['[příkaz]', 'spustí jednorázově příkaz jako root']
+            ]
+        },
+        exit: {
+            name: 'exit',
+            synopsis: 'exit',
+            description: 'Ukončí aktuální shell. V sudo režimu se vrátí k běžnému uživateli.',
+            options: []
+        },
+        id: {
+            name: 'id',
+            synopsis: 'id',
+            description: 'Zobrazí informace o aktuálním uživateli (UID, GID).',
+            options: []
+        }
+    };
+
     // Command implementations
     commands = {
         help: function() {
             const help = `
-<span class="output-info">Dostupné příkazy:</span>
+<span class="man-section">DOSTUPNÉ PŘÍKAZY</span>
 
-<span class="output-highlight">Souborový systém:</span>
-  <span class="output-command">ls</span> [-la] [cesta]     Výpis obsahu adresáře
-  <span class="output-command">cd</span> [adresář]         Změna aktuálního adresáře
-  <span class="output-command">pwd</span>                  Zobrazí aktuální cestu
-  <span class="output-command">cat</span> [soubor]         Zobrazí obsah souboru
-  <span class="output-command">mkdir</span> [název]        Vytvoří nový adresář
-  <span class="output-command">touch</span> [soubor]       Vytvoří prázdný soubor
-  <span class="output-command">rm</span> [-r] [soubor]     Smaže soubor nebo adresář
+<span class="man-header">Navigace a soubory:</span>
+  <span class="man-option">ls</span>       Výpis obsahu adresáře
+  <span class="man-option">cd</span>       Změna adresáře
+  <span class="man-option">pwd</span>      Aktuální adresář
+  <span class="man-option">cat</span>      Zobrazení obsahu souboru
+  <span class="man-option">head</span>     Prvních N řádků souboru
+  <span class="man-option">tail</span>     Posledních N řádků souboru
 
-<span class="output-highlight">Síťové příkazy:</span>
-  <span class="output-command">ping</span> [host]          Test síťového spojení
-  <span class="output-command">ifconfig</span>             Zobrazí síťová rozhraní
-  <span class="output-command">ip addr</span>              Alternativa k ifconfig
-  <span class="output-command">nslookup</span> [doména]    DNS lookup
-  <span class="output-command">curl</span> [url]           HTTP požadavek
-  <span class="output-command">netstat</span>              Aktivní síťová spojení
-  <span class="output-command">traceroute</span> [host]    Trasování cesty paketů
+<span class="man-header">Práce se soubory:</span>
+  <span class="man-option">mkdir</span>    Vytvoření adresáře
+  <span class="man-option">touch</span>    Vytvoření souboru
+  <span class="man-option">rm</span>       Smazání souboru/adresáře
+  <span class="man-option">cp</span>       Kopírování
+  <span class="man-option">mv</span>       Přesun/přejmenování
 
-<span class="output-highlight">Zachytávání provozu:</span>
-  <span class="output-command">tcpdump</span>              Spustí zachytávání paketů
-  <span class="output-command">tcpdump stop</span>         Zastaví zachytávání
+<span class="man-header">Vyhledávání:</span>
+  <span class="man-option">grep</span>     Hledání textu v souborech
+  <span class="man-option">find</span>     Hledání souborů
 
-<span class="output-highlight">Bezpečnostní demonstrace:</span>
-  <span class="output-command">http-login</span> [host] [user] [pass]   Simulace HTTP přihlášení
-  <span class="output-command">https-login</span> [host] [user] [pass]  Simulace HTTPS přihlášení
+<span class="man-header">Informace:</span>
+  <span class="man-option">stat</span>     Informace o souboru
+  <span class="man-option">file</span>     Typ souboru
+  <span class="man-option">wc</span>       Počet řádků/slov/znaků
+  <span class="man-option">hexdump</span>  Hexadecimální výpis
 
-<span class="output-highlight">Ostatní:</span>
-  <span class="output-command">clear</span>                Vyčistí obrazovku
-  <span class="output-command">whoami</span>               Zobrazí aktuálního uživatele
-  <span class="output-command">hostname</span>             Zobrazí název počítače
-  <span class="output-command">date</span>                 Zobrazí aktuální datum a čas
-  <span class="output-command">echo</span> [text]          Vypíše text
-  <span class="output-command">history</span>              Historie příkazů
+<span class="man-header">Systém:</span>
+  <span class="man-option">whoami</span>   Aktuální uživatel
+  <span class="man-option">id</span>       Informace o uživateli
+  <span class="man-option">uname</span>    Informace o systému
+  <span class="man-option">uptime</span>   Doba běhu systému
+  <span class="man-option">echo</span>     Výpis textu
+  <span class="man-option">history</span>  Historie příkazů
+  <span class="man-option">clear</span>    Vyčištění obrazovky
 
-<span class="output-muted">Tip: Použijte Tab pro automatické doplňování, ↑↓ pro historii</span>
+<span class="man-header">Oprávnění:</span>
+  <span class="man-option">sudo</span>     Spustit příkaz jako root
+  <span class="man-option">sudo su</span>  Přepnout do režimu root
+  <span class="man-option">exit</span>     Opustit režim root
+
+<span class="output-muted">Pro nápovědu k příkazu: man PŘÍKAZ</span>
+<span class="output-muted">Tab = doplnění, ↑↓ = historie, Ctrl+L = clear</span>
 `;
             this.printHtml(help);
+        },
+
+        man: function(args) {
+            if (args.length === 0) {
+                this.printError('Jaký manuál chcete zobrazit?');
+                return;
+            }
+
+            const cmd = args[0].toLowerCase();
+            const page = this.manPages[cmd];
+
+            if (!page) {
+                this.printError(`Žádný manuál pro ${cmd}`);
+                return;
+            }
+
+            let output = `
+<span class="man-header">${page.name.toUpperCase()}(1)</span>                    User Commands
+
+<span class="man-section">NÁZEV</span>
+       ${page.name} - ${page.description.split('.')[0]}
+
+<span class="man-section">POUŽITÍ</span>
+       ${page.synopsis}
+
+<span class="man-section">POPIS</span>
+       ${page.description}
+`;
+
+            if (page.options.length > 0) {
+                output += `\n<span class="man-section">VOLBY</span>\n`;
+                for (const [opt, desc] of page.options) {
+                    output += `       <span class="man-option">${opt}</span>\n              ${desc}\n`;
+                }
+            }
+
+            this.printHtml(output);
         },
 
         ls: function(args) {
@@ -282,7 +536,7 @@ Vyzkoušejte scénáře v pravém panelu pro interaktivní demonstrace.
 
             for (const arg of args) {
                 if (arg.startsWith('-')) {
-                    if (arg.includes('a')) options.all = true;
+                    if (arg.includes('a') || arg.includes('A')) options.all = true;
                     if (arg.includes('l')) options.long = true;
                 } else {
                     path = arg;
@@ -297,23 +551,25 @@ Vyzkoušejte scénáře v pravém panelu pro interaktivní demonstrace.
             }
 
             if (result.files.length === 0) {
-                return; // Empty directory
+                return;
             }
 
             if (options.long) {
                 for (const file of result.files) {
                     const size = (file.size || 0).toString().padStart(8);
-                    const className = file.type === 'dir' ? 'output-dir' :
-                        (file.permissions.includes('x') ? 'output-exec' : 'output-file');
+                    const dateStr = file.modified ? file.modified.slice(5, 16) : 'Jan  1 00:00';
+                    const className = file.type === 'dir' ? 'file-dir' :
+                        (file.permissions.includes('x') ? 'file-exec' : 'file-normal');
+
                     this.printHtml(
-                        `<span class="output-muted">${file.permissions} ${file.owner.padEnd(8)} ${file.group.padEnd(8)} ${size}</span> ` +
+                        `<span class="output-muted">${file.permissions} 1 ${file.owner.padEnd(8)} ${file.group.padEnd(8)} ${size} ${dateStr}</span> ` +
                         `<span class="${className}">${file.name}${file.type === 'dir' ? '/' : ''}</span>`
                     );
                 }
             } else {
                 const output = result.files.map(f => {
-                    const className = f.type === 'dir' ? 'output-dir' :
-                        (f.permissions.includes('x') ? 'output-exec' : 'output-file');
+                    const className = f.type === 'dir' ? 'file-dir' :
+                        (f.permissions.includes('x') ? 'file-exec' : 'file-normal');
                     return `<span class="${className}">${f.name}${f.type === 'dir' ? '/' : ''}</span>`;
                 }).join('  ');
                 this.printHtml(output);
@@ -337,11 +593,70 @@ Vyzkoušejte scénáře v pravém panelu pro interaktivní demonstrace.
                 return;
             }
 
-            const result = fs.readFile(args[0]);
+            for (const arg of args) {
+                const result = fs.readFile(arg);
+                if (result.error) {
+                    this.printError(result.error);
+                } else if (result.binary) {
+                    this.printError(`cat: ${arg}: Binární soubor (použij hexdump -C)`);
+                } else {
+                    this.printLine(result.content);
+                }
+            }
+        },
+
+        head: function(args) {
+            let lines = 10;
+            let file = null;
+
+            for (let i = 0; i < args.length; i++) {
+                if (args[i] === '-n' && args[i + 1]) {
+                    lines = parseInt(args[i + 1]) || 10;
+                    i++;
+                } else if (!args[i].startsWith('-')) {
+                    file = args[i];
+                }
+            }
+
+            if (!file) {
+                this.printError('head: chybí operand');
+                return;
+            }
+
+            const result = fs.readFile(file);
             if (result.error) {
                 this.printError(result.error);
             } else {
-                this.printLine(result.content);
+                const content = result.content.split('\n').slice(0, lines).join('\n');
+                this.printLine(content);
+            }
+        },
+
+        tail: function(args) {
+            let lines = 10;
+            let file = null;
+
+            for (let i = 0; i < args.length; i++) {
+                if (args[i] === '-n' && args[i + 1]) {
+                    lines = parseInt(args[i + 1]) || 10;
+                    i++;
+                } else if (!args[i].startsWith('-')) {
+                    file = args[i];
+                }
+            }
+
+            if (!file) {
+                this.printError('tail: chybí operand');
+                return;
+            }
+
+            const result = fs.readFile(file);
+            if (result.error) {
+                this.printError(result.error);
+            } else {
+                const allLines = result.content.split('\n');
+                const content = allLines.slice(-lines).join('\n');
+                this.printLine(content);
             }
         },
 
@@ -351,9 +666,11 @@ Vyzkoušejte scénáře v pravém panelu pro interaktivní demonstrace.
                 return;
             }
 
-            const result = fs.makeDir(args[0]);
-            if (result.error) {
-                this.printError(result.error);
+            for (const arg of args) {
+                const result = fs.makeDir(arg);
+                if (result.error) {
+                    this.printError(result.error);
+                }
             }
         },
 
@@ -363,33 +680,291 @@ Vyzkoušejte scénáře v pravém panelu pro interaktivní demonstrace.
                 return;
             }
 
-            const result = fs.touchFile(args[0]);
-            if (result.error) {
-                this.printError(result.error);
+            for (const arg of args) {
+                const result = fs.touchFile(arg);
+                if (result.error) {
+                    this.printError(result.error);
+                }
             }
         },
 
         rm: function(args) {
             const options = { recursive: false };
-            let path = '';
+            const files = [];
 
             for (const arg of args) {
-                if (arg === '-r' || arg === '-rf' || arg === '-R') {
+                if (arg === '-r' || arg === '-rf' || arg === '-R' || arg === '-fr') {
                     options.recursive = true;
-                } else {
-                    path = arg;
+                } else if (arg === '-f') {
+                    // Force - ignore
+                } else if (!arg.startsWith('-')) {
+                    files.push(arg);
                 }
             }
 
-            if (!path) {
+            if (files.length === 0) {
                 this.printError('rm: chybí operand');
                 return;
             }
 
-            const result = fs.remove(path, options);
+            for (const file of files) {
+                const result = fs.remove(file, options);
+                if (result.error) {
+                    this.printError(result.error);
+                }
+            }
+        },
+
+        grep: function(args) {
+            const options = { ignoreCase: false, recursive: false, showLineNum: false };
+            let pattern = null;
+            const files = [];
+
+            for (const arg of args) {
+                if (arg === '-i') {
+                    options.ignoreCase = true;
+                } else if (arg === '-r' || arg === '-R') {
+                    options.recursive = true;
+                } else if (arg === '-n') {
+                    options.showLineNum = true;
+                } else if (!pattern) {
+                    pattern = arg;
+                } else {
+                    files.push(arg);
+                }
+            }
+
+            if (!pattern) {
+                this.printError('grep: chybí vzor');
+                return;
+            }
+
+            if (files.length === 0) {
+                files.push('.');
+                options.recursive = true;
+            }
+
+            for (const file of files) {
+                const result = fs.grep(pattern, file, options);
+
+                if (result.error) {
+                    this.printError(result.error);
+                } else if (result.results.length === 0) {
+                    // No matches - silent
+                } else {
+                    for (const match of result.results) {
+                        const prefix = files.length > 1 || options.recursive
+                            ? `<span class="output-highlight">${match.file}</span>:`
+                            : '';
+                        const lineNum = options.showLineNum
+                            ? `<span class="output-success">${match.lineNum}</span>:`
+                            : '';
+
+                        // Highlight matches
+                        const regex = options.ignoreCase
+                            ? new RegExp(`(${pattern})`, 'gi')
+                            : new RegExp(`(${pattern})`, 'g');
+                        const highlighted = this.escapeHtml(match.line).replace(regex, '<span class="output-error">$1</span>');
+
+                        this.printHtml(`${prefix}${lineNum}${highlighted}`);
+                    }
+                }
+            }
+        },
+
+        find: function(args) {
+            let searchPath = '.';
+            let namePattern = null;
+
+            for (let i = 0; i < args.length; i++) {
+                if (args[i] === '-name' && args[i + 1]) {
+                    namePattern = args[i + 1];
+                    i++;
+                } else if (!args[i].startsWith('-')) {
+                    searchPath = args[i];
+                }
+            }
+
+            const findInDir = (path, node) => {
+                const results = [];
+                const resolvedPath = fs.resolvePath(path);
+
+                for (const [name, child] of Object.entries(node.children || {})) {
+                    const childPath = resolvedPath === '/' ? `/${name}` : `${resolvedPath}/${name}`;
+
+                    if (!namePattern || this.matchWildcard(name, namePattern)) {
+                        results.push(childPath);
+                    }
+
+                    if (child.type === 'dir') {
+                        results.push(...findInDir(childPath, child));
+                    }
+                }
+
+                return results;
+            };
+
+            const startNode = fs.getNode(searchPath);
+            if (!startNode) {
+                this.printError(`find: '${searchPath}': Adresář neexistuje`);
+                return;
+            }
+
+            if (startNode.type !== 'dir') {
+                if (!namePattern || this.matchWildcard(startNode.name, namePattern)) {
+                    this.printLine(fs.resolvePath(searchPath));
+                }
+                return;
+            }
+
+            const results = findInDir(searchPath, startNode);
+            results.forEach(r => this.printLine(r));
+        },
+
+        stat: function(args) {
+            if (args.length === 0) {
+                this.printError('stat: chybí operand');
+                return;
+            }
+
+            for (const arg of args) {
+                const result = fs.getFileInfo(arg);
+
+                if (result.error) {
+                    this.printError(result.error);
+                } else {
+                    const typeStr = result.type === 'dir' ? 'adresář' : 'běžný soubor';
+                    this.printHtml(`  Soubor: <span class="output-cyan">${result.name}</span>
+  Velikost: ${result.size}       Bloky: ${result.blocks}       ${typeStr}
+Přístup: (${result.permissions})  Uid: ${result.owner}   Gid: ${result.group}
+Změněno: ${result.modified}`);
+                }
+            }
+        },
+
+        file: function(args) {
+            if (args.length === 0) {
+                this.printError('file: chybí operand');
+                return;
+            }
+
+            for (const arg of args) {
+                const result = fs.getFileType(arg);
+
+                if (result.error) {
+                    this.printError(result.error);
+                } else {
+                    this.printLine(`${arg}: ${result.type}`);
+                }
+            }
+        },
+
+        hexdump: function(args) {
+            let canonical = false;
+            let file = null;
+
+            for (const arg of args) {
+                if (arg === '-C') {
+                    canonical = true;
+                } else if (!arg.startsWith('-')) {
+                    file = arg;
+                }
+            }
+
+            if (!file) {
+                this.printError('hexdump: chybí operand');
+                return;
+            }
+
+            const result = fs.readFile(file);
             if (result.error) {
                 this.printError(result.error);
+                return;
             }
+
+            const content = result.content;
+            const bytes = [];
+            for (let i = 0; i < content.length; i++) {
+                bytes.push(content.charCodeAt(i));
+            }
+
+            // Generate hexdump output
+            for (let offset = 0; offset < bytes.length; offset += 16) {
+                const chunk = bytes.slice(offset, offset + 16);
+                const offsetStr = offset.toString(16).padStart(8, '0');
+
+                const hexPart1 = chunk.slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join(' ');
+                const hexPart2 = chunk.slice(8).map(b => b.toString(16).padStart(2, '0')).join(' ');
+
+                const asciiPart = chunk.map(b => {
+                    if (b >= 32 && b < 127) return String.fromCharCode(b);
+                    return '.';
+                }).join('');
+
+                if (canonical) {
+                    this.printHtml(
+                        `<span class="hex-offset">${offsetStr}</span>  ` +
+                        `<span class="hex-bytes">${hexPart1.padEnd(23)}</span>  ` +
+                        `<span class="hex-bytes">${hexPart2.padEnd(23)}</span>  ` +
+                        `|<span class="hex-ascii">${asciiPart}</span>|`
+                    );
+                } else {
+                    this.printHtml(
+                        `<span class="hex-offset">${offsetStr}</span>  ` +
+                        `<span class="hex-bytes">${hexPart1} ${hexPart2}</span>`
+                    );
+                }
+            }
+
+            const endOffset = bytes.length.toString(16).padStart(8, '0');
+            this.printHtml(`<span class="hex-offset">${endOffset}</span>`);
+        },
+
+        wc: function(args) {
+            let countLines = true, countWords = true, countBytes = true;
+            const files = [];
+
+            for (const arg of args) {
+                if (arg === '-l') {
+                    countLines = true; countWords = false; countBytes = false;
+                } else if (arg === '-w') {
+                    countLines = false; countWords = true; countBytes = false;
+                } else if (arg === '-c') {
+                    countLines = false; countWords = false; countBytes = true;
+                } else if (!arg.startsWith('-')) {
+                    files.push(arg);
+                }
+            }
+
+            if (files.length === 0) {
+                this.printError('wc: chybí operand');
+                return;
+            }
+
+            for (const file of files) {
+                const result = fs.readFile(file);
+                if (result.error) {
+                    this.printError(result.error);
+                    continue;
+                }
+
+                const content = result.content;
+                const lines = content.split('\n').length;
+                const words = content.split(/\s+/).filter(w => w.length > 0).length;
+                const bytes = content.length;
+
+                let output = '';
+                if (countLines) output += lines.toString().padStart(8);
+                if (countWords) output += words.toString().padStart(8);
+                if (countBytes) output += bytes.toString().padStart(8);
+                output += ' ' + file;
+
+                this.printLine(output);
+            }
+        },
+
+        echo: function(args) {
+            this.printLine(args.join(' '));
         },
 
         clear: function() {
@@ -404,12 +979,32 @@ Vyzkoušejte scénáře v pravém panelu pro interaktivní demonstrace.
             this.printLine(fs.hostname);
         },
 
-        date: function() {
-            this.printLine(new Date().toLocaleString('cs-CZ'));
+        uname: function(args) {
+            const all = args.includes('-a');
+
+            if (all || args.length === 0) {
+                this.printLine('Linux linux-vm 5.15.0-generic #1 SMP x86_64 GNU/Linux');
+            } else {
+                let output = '';
+                if (args.includes('-s')) output += 'Linux ';
+                if (args.includes('-n')) output += 'linux-vm ';
+                if (args.includes('-r')) output += '5.15.0-generic ';
+                if (args.includes('-m')) output += 'x86_64 ';
+                this.printLine(output.trim());
+            }
         },
 
-        echo: function(args) {
-            this.printLine(args.join(' '));
+        uptime: function() {
+            const up = fs.getUptime();
+            const now = new Date();
+            const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            const uptimeStr = up.hours > 0 ? `${up.hours}:${up.minutes.toString().padStart(2, '0')}` : `${up.minutes} min`;
+
+            this.printLine(` ${timeStr} up ${uptimeStr},  ${up.users} user,  load average: ${up.loadAvg.join(', ')}`);
+        },
+
+        date: function() {
+            this.printLine(new Date().toLocaleString('cs-CZ'));
         },
 
         history: function() {
@@ -418,157 +1013,48 @@ Vyzkoušejte scénáře v pravém panelu pro interaktivní demonstrace.
             });
         },
 
-        // Network commands
-        ping: function(args) {
+        exit: function() {
+            if (fs.isRoot) {
+                fs.exitSudo();
+                this.printLine('Opouštím režim superuživatele.');
+                this.updatePrompt();
+            } else {
+                this.printLine('Nelze ukončit - toto je webový emulátor :)');
+            }
+        },
+
+        sudo: function(args) {
             if (args.length === 0) {
-                this.printError('ping: chybí cílový hostitel');
+                this.printError('sudo: chybí příkaz');
+                this.printLine('Použití: sudo [příkaz] nebo sudo su');
                 return;
             }
 
-            const count = args.includes('-c') ? parseInt(args[args.indexOf('-c') + 1]) || 4 : 4;
-            const host = args.filter(a => !a.startsWith('-') && isNaN(a))[0];
+            // If already root, just run the command
+            if (fs.isRoot) {
+                const command = args[0].toLowerCase();
+                const cmdArgs = args.slice(1);
+                if (this.commands[command]) {
+                    this.commands[command].call(this, cmdArgs);
+                } else {
+                    this.printError(`${command}: příkaz nenalezen`);
+                }
+                return;
+            }
 
-            const result = network.ping(host, count);
-            if (result.error) {
-                this.printError(result.error);
+            // Ask for password
+            this.printLine('[sudo] heslo pro ' + fs.user + ': ');
+            this.awaitingSudoPassword = true;
+            this.sudoCommand = args;
+            this.inputEl.type = 'password';
+        },
+
+        id: function() {
+            if (fs.isRoot) {
+                this.printLine('uid=0(root) gid=0(root) groups=0(root)');
             } else {
-                this.printLine(result.output);
+                this.printLine('uid=1000(student) gid=1000(student) groups=1000(student),27(sudo)');
             }
-        },
-
-        ifconfig: function(args) {
-            const result = network.ifconfig(args[0]);
-            if (result.error) {
-                this.printError(result.error);
-            } else {
-                this.printLine(result.output);
-            }
-        },
-
-        ip: function(args) {
-            if (args[0] === 'addr' || args[0] === 'a') {
-                const result = network.ipAddr();
-                this.printLine(result.output);
-            } else {
-                this.printError(`ip: neznámý příkaz '${args[0]}'`);
-            }
-        },
-
-        nslookup: function(args) {
-            if (args.length === 0) {
-                this.printError('nslookup: chybí argument');
-                return;
-            }
-
-            const result = network.nslookup(args[0]);
-            if (result.error) {
-                this.printError(result.error);
-            } else {
-                this.printLine(result.output);
-            }
-        },
-
-        curl: function(args) {
-            if (args.length === 0) {
-                this.printError('curl: chybí URL');
-                return;
-            }
-
-            const options = { includeHeaders: args.includes('-i') || args.includes('-I') };
-            const url = args.find(a => a.startsWith('http'));
-
-            if (!url) {
-                this.printError('curl: neplatná URL');
-                return;
-            }
-
-            const result = network.curl(url, options);
-            if (result.error) {
-                this.printError(result.error);
-            } else {
-                this.printLine(result.output);
-            }
-        },
-
-        netstat: function() {
-            const result = network.netstat();
-            this.printLine(result.output);
-        },
-
-        traceroute: function(args) {
-            if (args.length === 0) {
-                this.printError('traceroute: chybí cílový hostitel');
-                return;
-            }
-
-            const result = network.traceroute(args[0]);
-            if (result.error) {
-                this.printError(result.error);
-            } else {
-                this.printLine(result.output);
-            }
-        },
-
-        tcpdump: function(args) {
-            if (args[0] === 'stop') {
-                this.stopCapture();
-                return;
-            }
-
-            if (network.isCapturing) {
-                this.printLine('tcpdump: již běží zachytávání');
-                return;
-            }
-
-            // Show network monitor
-            document.getElementById('networkMonitor').classList.add('visible');
-            document.getElementById('packetList').innerHTML = '';
-
-            const result = network.startCapture((packet) => {
-                this.addPacketToMonitor(packet);
-            });
-
-            this.printLine(result.output);
-            this.printLine('Zachytávání spuštěno. Pro zastavení použijte "tcpdump stop" nebo Ctrl+C');
-        },
-
-        // Security demonstration commands
-        'http-login': function(args) {
-            if (args.length < 3) {
-                this.printError('Použití: http-login [host] [username] [password]');
-                return;
-            }
-
-            const [host, username, password] = args;
-            const url = `http://${host}/login`;
-
-            this.printLine(`Odesílám přihlašovací údaje na ${url}...`, 'output-warning');
-
-            network.httpPost(url, { username, password });
-
-            this.printHtml(`
-<span class="output-error">⚠ VAROVÁNÍ: Přihlašovací údaje byly odeslány přes HTTP!</span>
-<span class="output-error">⚠ Data jsou viditelná v Network Monitoru jako plain text!</span>
-`);
-        },
-
-        'https-login': function(args) {
-            if (args.length < 3) {
-                this.printError('Použití: https-login [host] [username] [password]');
-                return;
-            }
-
-            const [host, username, password] = args;
-            const url = `https://${host}/login`;
-
-            this.printLine(`Odesílám přihlašovací údaje na ${url}...`, 'output-success');
-
-            network.httpPost(url, { username, password });
-
-            this.printHtml(`
-<span class="output-success">✓ Přihlašovací údaje byly odeslány přes HTTPS</span>
-<span class="output-success">✓ Data jsou šifrovaná - v Network Monitoru vidíte pouze "Application Data (encrypted)"</span>
-`);
         },
 
         // Aliases
@@ -578,45 +1064,21 @@ Vyzkoušejte scénáře v pravém panelu pro interaktivní demonstrace.
 
         la: function(args) {
             this.commands.ls.call(this, ['-a', ...args]);
+        },
+
+        '.': function(args) {
+            this.printError('.: chybí argument (název souboru)');
         }
     };
 
-    addPacketToMonitor(packet) {
-        const packetList = document.getElementById('packetList');
-        const packetEl = document.createElement('div');
-        packetEl.className = `packet ${packet.type}`;
-
-        const dataClass = packet.sensitive ? 'sensitive' : (packet.encrypted ? 'encrypted' : '');
-
-        packetEl.innerHTML = `
-            <span class="packet-time">${packet.timestamp}</span>
-            <span class="packet-src">${packet.src}</span>
-            <span class="packet-dst">${packet.dst}</span>
-            <span class="packet-data ${dataClass}">${packet.data}</span>
-        `;
-
-        packetList.appendChild(packetEl);
-        packetList.scrollTop = packetList.scrollHeight;
+    // Wildcard matching helper
+    matchWildcard(str, pattern) {
+        const regexPattern = pattern
+            .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+            .replace(/\*/g, '.*')
+            .replace(/\?/g, '.');
+        return new RegExp(`^${regexPattern}$`).test(str);
     }
-
-    stopCapture() {
-        const result = network.stopCapture();
-        this.printLine(result.output);
-        document.getElementById('monitorStatus').textContent = '● Zastaveno';
-        document.getElementById('monitorStatus').style.color = 'var(--text-muted)';
-    }
-}
-
-// Global function to stop capture (called from HTML button)
-function stopCapture() {
-    terminal.stopCapture();
-}
-
-// Global function to insert command (called from HTML)
-function insertCommand(cmd) {
-    const input = document.getElementById('commandInput');
-    input.value = cmd;
-    input.focus();
 }
 
 // Initialize terminal
