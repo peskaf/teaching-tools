@@ -1,5 +1,5 @@
 // Version for cache-busting verification
-export const VERSION = "1.0.2";
+export const VERSION = "1.0.5";
 
 // Game Configuration
 export const CONFIG = {
@@ -91,34 +91,32 @@ export const LOCATIONS = {
     pond: { x: 0, y: 0, w: 3, h: 3 }
 };
 
-// Door positions for pathfinding (tile coordinates of door - these are walkable tiles)
+// Door positions for pathfinding - INTEGER tile coordinates (add +0.5 for center when navigating)
 export const DOOR_POSITIONS = {
-    house: { x: LOCATIONS.house.doorX + 0.5, y: LOCATIONS.house.doorY + 0.5 },
-    storage: { x: LOCATIONS.storage.doorX + 0.5, y: LOCATIONS.storage.doorY + 0.5 },
-    mill: { x: LOCATIONS.mill.doorX + 0.5, y: LOCATIONS.mill.doorY + 0.5 },
-    pasture: { x: LOCATIONS.pasture.gateX + 0.5, y: LOCATIONS.pasture.gateY + 0.5 }
+    house: { x: LOCATIONS.house.doorX, y: LOCATIONS.house.doorY },
+    storage: { x: LOCATIONS.storage.doorX, y: LOCATIONS.storage.doorY },
+    mill: { x: LOCATIONS.mill.doorX, y: LOCATIONS.mill.doorY },
+    pasture: { x: LOCATIONS.pasture.gateX, y: LOCATIONS.pasture.gateY }
 };
 
-// Bed positions within house (in tile coordinates)
+// Bed positions within house - INTEGER tile coordinates (add +0.5 for center when navigating)
 // House at (3,2) w=7, h=5: interior tiles x:4,5,6,7,8 y:3,4,5
-// ALL POSITIONS USE TILE CENTERS: tileX + 0.5, tileY + 0.5
 export function getBedPosition(villagerIndex) {
     // Beds on bottom interior row (tile y=5), spread across tiles x=4,5,6,7,8
     const bedTileX = LOCATIONS.house.x + 1 + villagerIndex; // tiles 4,5,6,7,8
     const bedTileY = LOCATIONS.house.y + LOCATIONS.house.h - 2; // tile 5
-    return { x: bedTileX + 0.5, y: bedTileY + 0.5 };
+    return { x: bedTileX, y: bedTileY }; // Integer coordinates
 }
 
-// Interior positions within house (all inside the walls)
+// Interior positions within house - INTEGER tile coordinates (add +0.5 for center when navigating)
 // House at (3,2) w=7, h=5: interior tiles x:4,5,6,7,8 y:3,4,5
-// ALL POSITIONS USE TILE CENTERS: tileX + 0.5, tileY + 0.5
 export const HOUSE_POSITIONS = {
     // Fireplace on tile (8, 3) - right side, top row
-    fireplace: { x: LOCATIONS.house.x + LOCATIONS.house.w - 2 + 0.5, y: LOCATIONS.house.y + 1 + 0.5 },
+    fireplace: { x: LOCATIONS.house.x + LOCATIONS.house.w - 2, y: LOCATIONS.house.y + 1 },
     // Stove on tile (7, 3) - center-right, top row
-    stove: { x: LOCATIONS.house.x + LOCATIONS.house.w - 3 + 0.5, y: LOCATIONS.house.y + 1 + 0.5 },
+    stove: { x: LOCATIONS.house.x + LOCATIONS.house.w - 3, y: LOCATIONS.house.y + 1 },
     // Knitting station on tile (4, 3) - left side, top row
-    knittingStation: { x: LOCATIONS.house.x + 1 + 0.5, y: LOCATIONS.house.y + 1 + 0.5 }
+    knittingStation: { x: LOCATIONS.house.x + 1, y: LOCATIONS.house.y + 1 }
 };
 
 // Villager roles (for educational purposes - students assign different trees to each)
