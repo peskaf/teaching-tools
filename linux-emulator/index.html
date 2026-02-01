@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Emulátor</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Linux Emulátor</h1>
+            <p>Interaktivní prostředí pro výuku příkazové řádky a síťové bezpečnosti</p>
+        </header>
+
+        <div class="main-layout">
+            <!-- Terminal -->
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <div class="terminal-buttons">
+                        <span class="btn-close"></span>
+                        <span class="btn-minimize"></span>
+                        <span class="btn-maximize"></span>
+                    </div>
+                    <div class="terminal-title">student@linux-vm: ~</div>
+                </div>
+                <div class="terminal-body" id="terminal">
+                    <div id="output"></div>
+                    <div class="input-line">
+                        <span class="prompt" id="prompt">student@linux-vm:~$</span>
+                        <input type="text" id="commandInput" autocomplete="off" autofocus spellcheck="false">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Side Panel -->
+            <div class="side-panel">
+                <!-- Quick Reference -->
+                <div class="panel">
+                    <div class="panel-title">Základní příkazy</div>
+                    <div class="command-list">
+                        <div class="command-item" onclick="insertCommand('help')">
+                            <code>help</code>
+                            <span>Zobrazí nápovědu</span>
+                        </div>
+                        <div class="command-item" onclick="insertCommand('ls')">
+                            <code>ls</code>
+                            <span>Výpis souborů</span>
+                        </div>
+                        <div class="command-item" onclick="insertCommand('cd')">
+                            <code>cd [adresář]</code>
+                            <span>Změna adresáře</span>
+                        </div>
+                        <div class="command-item" onclick="insertCommand('pwd')">
+                            <code>pwd</code>
+                            <span>Aktuální cesta</span>
+                        </div>
+                        <div class="command-item" onclick="insertCommand('cat')">
+                            <code>cat [soubor]</code>
+                            <span>Zobrazí obsah</span>
+                        </div>
+                        <div class="command-item" onclick="insertCommand('clear')">
+                            <code>clear</code>
+                            <span>Vyčistí terminál</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Commands -->
+                <div class="panel">
+                    <div class="panel-title">Síťové příkazy</div>
+                    <div class="command-list">
+                        <div class="command-item" onclick="insertCommand('ifconfig')">
+                            <code>ifconfig</code>
+                            <span>Síťová rozhraní</span>
+                        </div>
+                        <div class="command-item" onclick="insertCommand('ping google.com')">
+                            <code>ping [host]</code>
+                            <span>Test spojení</span>
+                        </div>
+                        <div class="command-item" onclick="insertCommand('nslookup google.com')">
+                            <code>nslookup [doména]</code>
+                            <span>DNS lookup</span>
+                        </div>
+                        <div class="command-item" onclick="insertCommand('curl http://example.com')">
+                            <code>curl [url]</code>
+                            <span>HTTP požadavek</span>
+                        </div>
+                        <div class="command-item" onclick="insertCommand('tcpdump')">
+                            <code>tcpdump</code>
+                            <span>Zachytávání provozu</span>
+                        </div>
+                        <div class="command-item" onclick="insertCommand('netstat')">
+                            <code>netstat</code>
+                            <span>Síťové spojení</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scenarios -->
+                <div class="panel">
+                    <div class="panel-title">Scénáře</div>
+                    <div class="scenario-list">
+                        <button class="scenario-btn" onclick="loadScenario('http_login')">
+                            <span class="scenario-icon">🔓</span>
+                            <div>
+                                <strong>HTTP přihlášení</strong>
+                                <small>Zachycení hesla v HTTP</small>
+                            </div>
+                        </button>
+                        <button class="scenario-btn" onclick="loadScenario('https_login')">
+                            <span class="scenario-icon">🔒</span>
+                            <div>
+                                <strong>HTTPS přihlášení</strong>
+                                <small>Šifrovaný provoz</small>
+                            </div>
+                        </button>
+                        <button class="scenario-btn" onclick="loadScenario('cookie_theft')">
+                            <span class="scenario-icon">🍪</span>
+                            <div>
+                                <strong>Krádež cookies</strong>
+                                <small>Session hijacking</small>
+                            </div>
+                        </button>
+                        <button class="scenario-btn" onclick="loadScenario('dns_lookup')">
+                            <span class="scenario-icon">🌐</span>
+                            <div>
+                                <strong>DNS průzkum</strong>
+                                <small>Zjištění IP adres</small>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Network Monitor (hidden by default) -->
+        <div class="network-monitor" id="networkMonitor">
+            <div class="monitor-header">
+                <div class="panel-title">Síťový monitor</div>
+                <div class="monitor-controls">
+                    <span class="monitor-status" id="monitorStatus">● Zachytávání...</span>
+                    <button class="monitor-btn" onclick="stopCapture()">Stop</button>
+                </div>
+            </div>
+            <div class="packet-list" id="packetList"></div>
+        </div>
+    </div>
+
+    <script src="filesystem.js"></script>
+    <script src="network.js"></script>
+    <script src="scenarios.js"></script>
+    <script src="terminal.js"></script>
+</body>
+</html>
