@@ -255,47 +255,128 @@ export const CONDITIONS = {
     storageHasCookedFish: (v) => gameStateRef.storedCookedFish > 0
 };
 
-// Helper to check if a move is valid (doesn't cut corners through walls)
-function canMoveTo(fromX, fromY, toX, toY) {
-    const fromTileX = Math.floor(fromX);
-    const fromTileY = Math.floor(fromY);
-    const toTileX = Math.floor(toX);
-    const toTileY = Math.floor(toY);
-
-    // Check if destination tile is blocked
-    if (isBlockedByWall(toTileX + 0.5, toTileY + 0.5)) return false;
-
-    // If staying on same tile, always allow
-    if (fromTileX === toTileX && fromTileY === toTileY) {
-        return true;
-    }
-
-    // If starting position is somehow in a wall, allow any move that gets us out
-    if (isBlockedByWall(fromTileX + 0.5, fromTileY + 0.5)) {
-        return true; // Let them escape
-    }
-
-    // If moving to adjacent tile (not diagonal), always allow
-    if (fromTileX === toTileX || fromTileY === toTileY) {
-        return true;
-    }
-
-    // Diagonal movement - must check corners to prevent cutting through walls
-    // Check the two corner tiles that would be cut through
-    const corner1Blocked = isBlockedByWall(toTileX + 0.5, fromTileY + 0.5);
-    const corner2Blocked = isBlockedByWall(fromTileX + 0.5, toTileY + 0.5);
-
-    // If EITHER corner is blocked, don't allow diagonal movement
-    // This is strict but prevents all corner-cutting issues
-    if (corner1Blocked || corner2Blocked) {
-        return false;
-    }
-
-    return true;
+// Check if a tile is walkable
+function isTileWalkable(tileX, tileY) {
+    return !isBlockedByWall(tileX + 0.5, tileY + 0.5);
 }
 
-// Create a movement action to a target location with simple tile-based pathfinding
-// Doors are walkable tiles, so pathfinding naturally finds the path through them
+// Get walkable neighbors of a tile (4-directional only to avoid corner-cutting issues)
+function getNeighbors(tileX, tileY) {
+    const neighbors = [];
+    const directions = [
+        { dx: 0, dy: -1 }, // up
+        { dx: 0, dy: 1 },  // down
+        { dx: -1, dy: 0 }, // left
+        { dx: 1, dy: 0 }   // right
+    ];
+
+    for (const dir of directions) {
+        const nx = tileX + dir.dx;
+        const ny = tileY + dir.dy;
+        if (isTileWalkable(nx, ny)) {
+            neighbors.push({ x: nx, y: ny });
+        }
+    }
+    return neighbors;
+}
+
+// A* pathfinding - returns array of tile centers [{x, y}, ...] from start to goal
+function findPath(startX, startY, goalX, goalY) {
+    const startTileX = Math.floor(startX);
+    const startTileY = Math.floor(startY);
+    const goalTileX = Math.floor(goalX);
+    const goalTileY = Math.floor(goalY);
+
+    // If start or goal is blocked, no path
+    if (!isTileWalkable(startTileX, startTileY) || !isTileWalkable(goalTileX, goalTileY)) {
+        return null;
+    }
+
+    // If already at goal tile, return just the goal
+    if (startTileX === goalTileX && startTileY === goalTileY) {
+        return [{ x: goalX, y: goalY }];
+    }
+
+    // A* implementation
+    const openSet = new Map(); // key: "x,y", value: {x, y, g, f, parent}
+    const closedSet = new Set(); // key: "x,y"
+
+    const heuristic = (ax, ay, bx, by) => Math.abs(ax - bx) + Math.abs(ay - by); // Manhattan distance
+
+    const startKey = `${startTileX},${startTileY}`;
+    const startNode = {
+        x: startTileX,
+        y: startTileY,
+        g: 0,
+        f: heuristic(startTileX, startTileY, goalTileX, goalTileY),
+        parent: null
+    };
+    openSet.set(startKey, startNode);
+
+    while (openSet.size > 0) {
+        // Find node with lowest f score
+        let current = null;
+        let currentKey = null;
+        for (const [key, node] of openSet) {
+            if (current === null || node.f < current.f) {
+                current = node;
+                currentKey = key;
+            }
+        }
+
+        // Reached goal?
+        if (current.x === goalTileX && current.y === goalTileY) {
+            // Reconstruct path
+            const path = [];
+            let node = current;
+            while (node !== null) {
+                // Use tile center, except for last node use exact goal
+                if (node.x === goalTileX && node.y === goalTileY) {
+                    path.unshift({ x: goalX, y: goalY });
+                } else {
+                    path.unshift({ x: node.x + 0.5, y: node.y + 0.5 });
+                }
+                node = node.parent;
+            }
+            return path;
+        }
+
+        // Move current from open to closed
+        openSet.delete(currentKey);
+        closedSet.add(currentKey);
+
+        // Check neighbors
+        for (const neighbor of getNeighbors(current.x, current.y)) {
+            const neighborKey = `${neighbor.x},${neighbor.y}`;
+
+            if (closedSet.has(neighborKey)) continue;
+
+            const g = current.g + 1; // Cost is 1 per tile
+
+            const existing = openSet.get(neighborKey);
+            if (existing && g >= existing.g) continue; // Not a better path
+
+            const f = g + heuristic(neighbor.x, neighbor.y, goalTileX, goalTileY);
+            openSet.set(neighborKey, {
+                x: neighbor.x,
+                y: neighbor.y,
+                g: g,
+                f: f,
+                parent: current
+            });
+        }
+
+        // Safety: limit iterations to prevent infinite loops
+        if (closedSet.size > 1000) {
+            return null; // No path found within reasonable search
+        }
+    }
+
+    return null; // No path found
+}
+
+// Create a movement action using A* pathfinding
+// Villagers compute a path once and follow it, recomputing if target changes
 function createGoToAction(targetGetter) {
     return (villager) => {
         const target = targetGetter(villager);
@@ -303,130 +384,70 @@ function createGoToAction(targetGetter) {
             villager.targetField = null;
             villager.targetTree = null;
             villager.targetSheep = null;
+            villager.currentPath = null;
             return NodeStatus.FAILURE;
         }
 
+        // Check if we've reached the target
         const dx = target.x - villager.x;
         const dy = target.y - villager.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist < 0.3) {
             villager.state = 'idle';
+            villager.currentPath = null;
             return NodeStatus.SUCCESS;
         }
 
-        // Slower if very hungry or cold
-        let speed = 0.08;
-        if (villager.hunger < 20 || villager.warmth < 20) {
-            speed = 0.04;
+        // Compute path if we don't have one, or if target changed significantly
+        const needNewPath = !villager.currentPath ||
+            villager.currentPath.length === 0 ||
+            !villager.pathTarget ||
+            Math.abs(villager.pathTarget.x - target.x) > 0.5 ||
+            Math.abs(villager.pathTarget.y - target.y) > 0.5;
+
+        if (needNewPath) {
+            const path = findPath(villager.x, villager.y, target.x, target.y);
+            if (!path || path.length === 0) {
+                // No path found - fail
+                villager.currentPath = null;
+                return failWithReason(villager, 'No path to target');
+            }
+            villager.currentPath = path;
+            villager.pathTarget = { x: target.x, y: target.y };
+            villager.pathIndex = 0;
         }
 
-        // Limit speed to not overshoot target
-        const moveSpeed = Math.min(speed, dist);
+        // Get current waypoint
+        while (villager.pathIndex < villager.currentPath.length) {
+            const waypoint = villager.currentPath[villager.pathIndex];
+            const wpDx = waypoint.x - villager.x;
+            const wpDy = waypoint.y - villager.y;
+            const wpDist = Math.sqrt(wpDx * wpDx + wpDy * wpDy);
 
-        // Calculate desired next position (direct line to target)
-        const desiredX = villager.x + (dx / dist) * moveSpeed;
-        const desiredY = villager.y + (dy / dist) * moveSpeed;
-
-        let nextX = villager.x;
-        let nextY = villager.y;
-        let moved = false;
-
-        // Try direct movement first
-        if (canMoveTo(villager.x, villager.y, desiredX, desiredY)) {
-            nextX = desiredX;
-            nextY = desiredY;
-            moved = true;
-        } else {
-            // Blocked - try moving along each axis separately toward the target
-            // Calculate how much to move on each axis (limited by speed and distance)
-            const moveAmountX = Math.min(Math.abs(dx), speed) * Math.sign(dx);
-            const moveAmountY = Math.min(Math.abs(dy), speed) * Math.sign(dy);
-
-            // Determine which axis to try first based on distance to target
-            const tryXFirst = Math.abs(dx) > Math.abs(dy);
-
-            if (tryXFirst) {
-                // Try X first, then Y
-                if (moveAmountX !== 0 && canMoveTo(villager.x, villager.y, villager.x + moveAmountX, villager.y)) {
-                    nextX = villager.x + moveAmountX;
-                    moved = true;
-                } else if (moveAmountY !== 0 && canMoveTo(villager.x, villager.y, villager.x, villager.y + moveAmountY)) {
-                    nextY = villager.y + moveAmountY;
-                    moved = true;
-                }
-            } else {
-                // Try Y first, then X
-                if (moveAmountY !== 0 && canMoveTo(villager.x, villager.y, villager.x, villager.y + moveAmountY)) {
-                    nextY = villager.y + moveAmountY;
-                    moved = true;
-                } else if (moveAmountX !== 0 && canMoveTo(villager.x, villager.y, villager.x + moveAmountX, villager.y)) {
-                    nextX = villager.x + moveAmountX;
-                    moved = true;
-                }
+            if (wpDist < 0.2) {
+                // Reached this waypoint, move to next
+                villager.pathIndex++;
+                continue;
             }
 
-            // If still stuck, try perpendicular directions (wall following)
-            if (!moved) {
-                // Calculate perpendicular directions, sorted by which gets us closer to target
-                const perpDirs = [
-                    { x: speed, y: 0 },
-                    { x: -speed, y: 0 },
-                    { x: 0, y: speed },
-                    { x: 0, y: -speed }
-                ];
-
-                // Sort by distance to target after move
-                perpDirs.sort((a, b) => {
-                    const distA = Math.sqrt(Math.pow(target.x - (villager.x + a.x), 2) +
-                                           Math.pow(target.y - (villager.y + a.y), 2));
-                    const distB = Math.sqrt(Math.pow(target.x - (villager.x + b.x), 2) +
-                                           Math.pow(target.y - (villager.y + b.y), 2));
-                    return distA - distB;
-                });
-
-                for (const dir of perpDirs) {
-                    if (canMoveTo(villager.x, villager.y, villager.x + dir.x, villager.y + dir.y)) {
-                        nextX = villager.x + dir.x;
-                        nextY = villager.y + dir.y;
-                        moved = true;
-                        break;
-                    }
-                }
+            // Move toward waypoint
+            let speed = 0.08;
+            if (villager.hunger < 20 || villager.warmth < 20) {
+                speed = 0.04;
             }
-        }
 
-        if (!moved) {
-            // Completely stuck - check if we're inside a wall and need to escape
-            const currentTileX = Math.floor(villager.x);
-            const currentTileY = Math.floor(villager.y);
-            if (isBlockedByWall(currentTileX + 0.5, currentTileY + 0.5)) {
-                // We're inside a wall! Push toward tile center of nearest walkable tile
-                const escapeDirections = [
-                    { dx: 1, dy: 0 }, { dx: -1, dy: 0 },
-                    { dx: 0, dy: 1 }, { dx: 0, dy: -1 }
-                ];
-                for (const dir of escapeDirections) {
-                    const escapeTileX = currentTileX + dir.dx;
-                    const escapeTileY = currentTileY + dir.dy;
-                    if (!isBlockedByWall(escapeTileX + 0.5, escapeTileY + 0.5)) {
-                        // Teleport to center of this walkable tile
-                        villager.x = escapeTileX + 0.5;
-                        villager.y = escapeTileY + 0.5;
-                        villager.state = 'walking';
-                        return NodeStatus.RUNNING;
-                    }
-                }
-            }
-            // Still stuck - return RUNNING to try again next tick
+            const moveSpeed = Math.min(speed, wpDist);
+            villager.x += (wpDx / wpDist) * moveSpeed;
+            villager.y += (wpDy / wpDist) * moveSpeed;
+            villager.state = 'walking';
+            villager.energy -= CONFIG.ENERGY_DRAIN * 0.5;
+
             return NodeStatus.RUNNING;
         }
 
-        villager.x = nextX;
-        villager.y = nextY;
-        villager.state = 'walking';
-        villager.energy -= CONFIG.ENERGY_DRAIN * 0.5;
-
+        // Path complete but not at target - recompute
+        villager.currentPath = null;
         return NodeStatus.RUNNING;
     };
 }
