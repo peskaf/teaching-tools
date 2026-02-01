@@ -179,6 +179,35 @@ export function initGame() {
     requestAnimationFrame(update);
 }
 
+// Run a single game tick
+function runTick() {
+    // Update time
+    gameState.time++;
+    if (gameState.time >= CONFIG.DAY_LENGTH) {
+        gameState.time = 0;
+        gameState.day++;
+
+        // Update season
+        gameState.season = getCurrentSeason();
+        gameState.seasonDay = ((gameState.day - 1) % CONFIG.SEASON_LENGTH) + 1;
+    }
+
+    // Update crops (only grow if not winter)
+    updateCrops(canCropsGrow());
+
+    // Update trees (regrow)
+    updateTrees();
+
+    // Update fireplace
+    updateFire(gameState);
+
+    // Update villagers
+    updateVillagers();
+
+    // Check objectives
+    checkObjectives();
+}
+
 // Main game loop
 function update(timestamp) {
     if (!gameState.running || gameState.speed === 0) {
@@ -186,38 +215,21 @@ function update(timestamp) {
         return;
     }
 
-    const tickInterval = CONFIG.TICK_RATE / gameState.speed;
+    const baseTickInterval = CONFIG.TICK_RATE; // 60ms per tick at 1x
+    const elapsed = timestamp - lastTick;
 
-    if (timestamp - lastTick >= tickInterval) {
+    // Calculate how many ticks should have happened
+    const ticksToRun = Math.floor((elapsed * gameState.speed) / baseTickInterval);
+
+    if (ticksToRun > 0) {
+        // Run multiple ticks at higher speeds (cap at 10 per frame to avoid freezing)
+        const actualTicks = Math.min(ticksToRun, 10);
+        for (let i = 0; i < actualTicks; i++) {
+            runTick();
+        }
         lastTick = timestamp;
 
-        // Update time
-        gameState.time++;
-        if (gameState.time >= CONFIG.DAY_LENGTH) {
-            gameState.time = 0;
-            gameState.day++;
-
-            // Update season
-            gameState.season = getCurrentSeason();
-            gameState.seasonDay = ((gameState.day - 1) % CONFIG.SEASON_LENGTH) + 1;
-        }
-
-        // Update crops (only grow if not winter)
-        updateCrops(canCropsGrow());
-
-        // Update trees (regrow)
-        updateTrees();
-
-        // Update fireplace
-        updateFire(gameState);
-
-        // Update villagers
-        updateVillagers();
-
-        // Check objectives
-        checkObjectives();
-
-        // Update UI
+        // Update UI (only once per frame, not per tick)
         updateTimeDisplay();
         updateStatusPanel();
         updateObjectives();
