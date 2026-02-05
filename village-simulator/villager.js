@@ -1126,62 +1126,20 @@ export function createNode(type, subtype) {
 // Create a simple default tree (students should customize per villager)
 export function createDefaultTree() {
     return new SelectorNode([
-        // 0. EMERGENCY: Fight fire!
+        // EMERGENCY: Fight fire!
         new SequenceNode([
             new ConditionNode('fireOutbreak', '🔥 Fire Outbreak?', CONDITIONS.fireOutbreak),
             new ActionNode('goToWell', '💧 Go to Well', ACTIONS.goToWell),
             new ActionNode('getWater', '💧 Get Water', ACTIONS.getWater),
             new ActionNode('goToFire', '🔥 Go to Fire', ACTIONS.goToFire),
             new ActionNode('extinguishFire', '💧 Extinguish', ACTIONS.extinguishFire)
-        ]),
-        // 1. Sleep at night
-        new SequenceNode([
-            new ConditionNode('isNight', '🌙 Is Night?', CONDITIONS.isNight),
-            new ActionNode('goToHouse', '🏠 Go to House', ACTIONS.goToHouse),
-            new ActionNode('sleep', '😴 Sleep', ACTIONS.sleep)
-        ]),
-        // 2. Warm up if cold
-        new SequenceNode([
-            new ConditionNode('isCold', '🥶 Is Cold?', CONDITIONS.isCold),
-            new ConditionNode('fireLit', '🔥 Fire Lit?', CONDITIONS.fireLit),
-            new ActionNode('goToFireplace', '🏠 Go to Fire', ACTIONS.goToFireplace),
-            new ActionNode('warmByFire', '🔥 Warm Up', ACTIONS.warmByFire)
-        ]),
-        // 3. Eat if hungry
-        new SequenceNode([
-            new ConditionNode('isHungry', '🍽️ Is Hungry?', CONDITIONS.isHungry),
-            new ConditionNode('storageHasBread', '🍞 Has Bread?', CONDITIONS.storageHasBread),
-            new ActionNode('goToStorage', '📦 Go to Storage', ACTIONS.goToStorage),
-            new ActionNode('eatBread', '🍞 Eat Bread', ACTIONS.eatBread)
-        ]),
-        // 4. Rest if tired
-        new SequenceNode([
-            new ConditionNode('isTired', '😴 Is Tired?', CONDITIONS.isTired),
-            new ActionNode('rest', '☕ Rest', ACTIONS.rest)
-        ]),
-        // 5. Store items if carrying
-        new SequenceNode([
-            new ConditionNode('hasItems', '🎒 Has Items?', CONDITIONS.hasItems),
-            new ActionNode('goToStorage', '📦 Go to Storage', ACTIONS.goToStorage),
-            new ActionNode('storeItems', '📥 Store Items', ACTIONS.storeItems)
-        ]),
-        // 6. Basic farming loop
-        new SequenceNode([
-            new ConditionNode('cropsReady', '🌾 Crops Ready?', CONDITIONS.cropsReady),
-            new ActionNode('goToField', '🚶 Go to Field', ACTIONS.goToField),
-            new ActionNode('harvestCrops', '🌾 Harvest', ACTIONS.harvestCrops)
-        ]),
-        new SequenceNode([
-            new ConditionNode('needsWater', '💧 Needs Water?', CONDITIONS.needsWater),
-            new ActionNode('goToWell', '💧 Go to Well', ACTIONS.goToWell),
-            new ActionNode('goToFieldForWatering', '🚶 Go to Field', ACTIONS.goToFieldForWatering),
-            new ActionNode('waterCrops', '💧 Water Crops', ACTIONS.waterCrops)
-        ]),
-        new SequenceNode([
-            new ConditionNode('fieldEmpty', '🟫 Field Empty?', CONDITIONS.fieldEmpty),
-            new ActionNode('goToField', '🚶 Go to Field', ACTIONS.goToField),
-            new ActionNode('plantCrops', '🌱 Plant Crops', ACTIONS.plantCrops)
         ])
+        // TODO: Add more behaviors here!
+        // Students can add sequences for:
+        // - Sleeping at night (CONDITIONS.isNight, ACTIONS.goToHouse, ACTIONS.sleep)
+        // - Eating when hungry (CONDITIONS.isHungry, ACTIONS.goToStorage, ACTIONS.eatBread)
+        // - Farming (CONDITIONS.cropsReady, ACTIONS.goToField, ACTIONS.harvestCrops)
+        // - And more! Check CONDITIONS and ACTIONS objects for available options.
     ]);
 }
 
